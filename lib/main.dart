@@ -1,19 +1,53 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'firebase_options.dart';
 import 'score_chart.dart';
 import 'models/game_state.dart';
 import 'utils/constants.dart';
 
-void main() {
-  runApp(const ScoreKeeperApp());
+void main() async {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    // Initialize Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).then((value) => print('Firebase initialized successfully'));
+    
+    // Create analytics instance
+    final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+    
+    // Run your app
+    runApp(ScoreKeeperApp(analytics: analytics));
+  } catch (e, stack) {
+    print('Error initializing app: $e');
+    print('Stack trace: $stack');
+    // Show error UI instead of silent fallback
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text('Critical Error: $e'),
+        ),
+      ),
+    ));
+  }
 }
 
 class ScoreKeeperApp extends StatelessWidget {
-  const ScoreKeeperApp({super.key});
+  final FirebaseAnalytics? analytics;
+  
+  const ScoreKeeperApp({
+    super.key, 
+    required this.analytics,
+  });
+  
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: AppConstants.appName,
+      restorationScopeId: 'score_keeper_app',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: AppConstants.primaryColor),
         useMaterial3: true,
@@ -22,26 +56,35 @@ class ScoreKeeperApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
       ),
-      home: const MainScreen(),
+      shortcuts: {
+        ...WidgetsApp.defaultShortcuts,
+      },
+      home: MainScreen(analytics: analytics),
     );
   }
 }
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final FirebaseAnalytics? analytics;
+  
+  const MainScreen({
+    super.key,
+    required this.analytics,
+  });
 
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
   late GameState _gameState;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _selectedIndex = 2; // Start with New Game tab
     _loadGameState();
   }
 
@@ -50,6 +93,7 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _gameState = gameState;
       _isLoading = false;
+      _selectedIndex = _gameState.isGameStarted ? 0 : 2; // Switch to Home if game exists
     });
   }
 
@@ -59,6 +103,9 @@ class _MainScreenState extends State<MainScreen> {
     } else {
       _confirmStartNewGame(playerCount);
     }
+    
+    // Log the event
+    _logNavEvent(0);
   }
 
   void _showNewGameConfirmationDialog(int playerCount) {
@@ -106,6 +153,9 @@ class _MainScreenState extends State<MainScreen> {
       _gameState.submitRoundScores(roundScores);
     });
     _gameState.save();
+    
+    // Log the event
+    _logNavEvent(0);
   }
 
   void _updateDefaultSignPreference(bool isNegative) {
@@ -116,6 +166,37 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   final List<String> _tabTitles = ['Home', 'History', 'New Game', 'Graph'];
+
+  void _onItemTapped(int index) {
+    if (_selectedIndex != index) {
+      // Track the navigation event
+      _logNavEvent(index);
+      
+      setState(() {
+        _selectedIndex = index;
+      });
+      
+      // Your existing navigation logic...
+    }
+  }
+  
+  void _logNavEvent(int index) {
+    if (widget.analytics == null) return;
+    
+    // Define tab names
+    final List<String> tabNames = ['Home', 'History', 'New Game', 'Graph'];
+    
+    // Log the event
+    widget.analytics!.logEvent(
+      name: 'nav_click',
+      parameters: {
+        'tab_name': tabNames[index],
+        'previous_tab': _selectedIndex < tabNames.length ? tabNames[_selectedIndex] : 'Unknown',
+      },
+    );
+    
+    print('Firebase Analytics: Logged navigation to ${tabNames[index]}');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +212,7 @@ class _MainScreenState extends State<MainScreen> {
       return NewGameScreen(onNewGame: _startNewGame);
     }
 
-    final List<Widget> _screens = [
+    final List<Widget> screens = [
       ScoringScreen(
         playerCount: _gameState.playerCount,
         playerNames: _gameState.playerNames,
@@ -160,23 +241,20 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text(_tabTitles[_selectedIndex]),
       ),
-      body: _screens[_selectedIndex],
+      body: screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+        onTap: _onItemTapped,
         items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: _tabTitles[0]),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: _tabTitles[1]),
-          BottomNavigationBarItem(icon: Icon(Icons.add), label: _tabTitles[2]),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: _tabTitles[3]),
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: _tabTitles[0]),
+          BottomNavigationBarItem(icon: const Icon(Icons.history), label: _tabTitles[1]),
+          BottomNavigationBarItem(icon: const Icon(Icons.add), label: _tabTitles[2]),
+          BottomNavigationBarItem(icon: const Icon(Icons.bar_chart), label: _tabTitles[3]),
         ],
       ),
     );
@@ -216,6 +294,7 @@ class _ScoringScreenState extends State<ScoringScreen> {
   final List<String> _errorMessages = List.filled(4, '');
   final GlobalKey _scoreBoxKey = GlobalKey();
   late bool _defaultNegative;
+  late List<FocusNode> _scoreFocusNodes;
 
   @override
   void initState() {
@@ -235,6 +314,7 @@ class _ScoringScreenState extends State<ScoringScreen> {
   void _initializeControllers() {
     _scoreControllers = List.generate(4, (index) => TextEditingController());
     _isNegativeScore = List.generate(4, (index) => _defaultNegative);
+    _scoreFocusNodes = List.generate(4, (index) => FocusNode());
     
     for (var controller in _scoreControllers) {
       controller.addListener(_updateScoreBoxes);
@@ -252,6 +332,9 @@ class _ScoringScreenState extends State<ScoringScreen> {
     for (var controller in _scoreControllers) {
       controller.removeListener(_updateScoreBoxes);
       controller.dispose();
+    }
+    for (var focusNode in _scoreFocusNodes) {
+      focusNode.dispose();
     }
     super.dispose();
   }
@@ -359,7 +442,7 @@ class _ScoringScreenState extends State<ScoringScreen> {
   void _toggleScoreSign(int index) {
     setState(() {
       _isNegativeScore[index] = !_isNegativeScore[index];
-      // Force rebuild to update text color
+      _scoreFocusNodes[index].requestFocus();
       _updateScoreBoxes();
     });
   }
@@ -383,102 +466,111 @@ class _ScoringScreenState extends State<ScoringScreen> {
     final orientation = MediaQuery.of(context).orientation;
     final isLandscape = orientation == Orientation.landscape;
     
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          // Compact Round indicator at the top
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppConstants.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              'Round ${widget.currentRound}',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          
-          // Main scrollable content (player rows and submit button)
-          Expanded(
-            child: Column(
-              children: [
-                // Player rows section
-                Expanded(
-                  child: isLandscape
-                      ? _buildLandscapeLayout()
-                      : _buildPortraitLayout(),
-                ),
-                
-                // Submit button (scrolls with content)
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: _submitScores,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(46), // Slightly smaller
-                  ),
-                  child: const Text('Submit Round Scores'),
-                ),
-              ],
-            ),
-          ),
-          
-          // Fixed score boxes at the bottom (don't scroll with keyboard)
-          const SizedBox(height: 8),
-          Row(
-            key: _scoreBoxKey,
+    return SafeArea(
+      child: GestureDetector(
+        onTap: () {
+          // This makes sure any text field that has focus will lose it
+          FocusScope.of(context).unfocus();
+        },
+        behavior: HitTestBehavior.translucent,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
             children: [
+              // Compact Round indicator at the top
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppConstants.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'Round ${widget.currentRound}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              // Main scrollable content (player rows and submit button)
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2.0, left: 4.0),
-                      child: Text(
-                        'Total Score',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                    // Player rows section
+                    Expanded(
+                      child: isLandscape
+                          ? _buildLandscapeLayout()
+                          : _buildPortraitLayout(),
                     ),
-                    _buildScoreBox(
-                      _calculateTotalScore(),
-                      AppConstants.totalScoreBoxColor,
+                    
+                    // Submit button (scrolls with content)
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: _submitScores,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(46), // Slightly smaller
+                      ),
+                      child: const Text('Submit Round Scores'),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2.0, left: 4.0),
-                      child: Text(
-                        'Round Score',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+              
+              // Fixed score boxes at the bottom (don't scroll with keyboard)
+              const SizedBox(height: 8),
+              Row(
+                key: _scoreBoxKey,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 2.0, left: 4.0),
+                          child: Text(
+                            'Total Score',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
-                      ),
+                        _buildScoreBox(
+                          _calculateTotalScore(),
+                          AppConstants.totalScoreBoxColor,
+                        ),
+                      ],
                     ),
-                    _buildScoreBox(
-                      _calculateCurrentRoundScore(),
-                      AppConstants.roundScoreBoxColor,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 2.0, left: 4.0),
+                          child: Text(
+                            'Round Score',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        _buildScoreBox(
+                          _calculateCurrentRoundScore(),
+                          AppConstants.roundScoreBoxColor,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -519,11 +611,11 @@ class _ScoringScreenState extends State<ScoringScreen> {
           padding: const EdgeInsets.only(bottom: 4.0),
           child: Row(
             children: [
-              Expanded(
+              const Expanded(
                 flex: 3,
                 child: Text(
                   'Player',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -531,11 +623,11 @@ class _ScoringScreenState extends State<ScoringScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(
+              const Expanded(
                 flex: 2,
                 child: Text(
                   'Total',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -543,11 +635,11 @@ class _ScoringScreenState extends State<ScoringScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(
+              const Expanded(
                 flex: 2,
                 child: Text(
                   'Round',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -597,6 +689,7 @@ class _ScoringScreenState extends State<ScoringScreen> {
                 playerName: widget.playerNames[index],
                 currentScore: widget.currentScores[index],
                 scoreController: _scoreControllers[index],
+                scoreFocusNode: _scoreFocusNodes[index],
                 isNegative: _isNegativeScore[index],
                 errorMessage: _errorMessages[index],
                 onPlayerNameChanged: widget.onPlayerNameChanged,
@@ -619,9 +712,9 @@ class _ScoringScreenState extends State<ScoringScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Text(
+              const Text(
                 'Default Sign: ',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -667,6 +760,7 @@ class _ScoringScreenState extends State<ScoringScreen> {
                 playerName: widget.playerNames[index],
                 currentScore: widget.currentScores[index],
                 scoreController: _scoreControllers[index],
+                scoreFocusNode: _scoreFocusNodes[index],
                 isNegative: _isNegativeScore[index],
                 errorMessage: _errorMessages[index],
                 onPlayerNameChanged: widget.onPlayerNameChanged,
@@ -687,6 +781,7 @@ class PlayerScoreRow extends StatefulWidget {
   final String playerName;
   final int currentScore;
   final TextEditingController scoreController;
+  final FocusNode scoreFocusNode;
   final bool isNegative;
   final String errorMessage;
   final Function(int, String) onPlayerNameChanged;
@@ -699,6 +794,7 @@ class PlayerScoreRow extends StatefulWidget {
     required this.playerName,
     required this.currentScore,
     required this.scoreController,
+    required this.scoreFocusNode,
     required this.isNegative,
     this.errorMessage = '',
     required this.onPlayerNameChanged,
@@ -735,127 +831,137 @@ class _PlayerScoreRowState extends State<PlayerScoreRow> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: SizedBox(
-                  height: AppConstants.playerRowHeight,
-                  child: TextField(
-                    decoration: InputDecoration(
-                      labelText: 'Player Name',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: () {
+        // Dismiss keyboard when tapping outside text fields
+        FocusScope.of(context).unfocus();
+      },
+      behavior: HitTestBehavior.translucent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: SizedBox(
+                    height: AppConstants.playerRowHeight,
+                    child: TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Player Name',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                      controller: _nameController,
+                      onChanged: (value) => widget.onPlayerNameChanged(widget.playerIndex, value),
+                      onTap: () {
+                        // Select all text when field is tapped
+                        _nameController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: _nameController.text.length,
+                        );
+                      },
+                      textInputAction: TextInputAction.done,
+                      onEditingComplete: () => FocusScope.of(context).unfocus(),
                     ),
-                    controller: _nameController,
-                    onChanged: (value) => widget.onPlayerNameChanged(widget.playerIndex, value),
-                    onTap: () {
-                      // Select all text when field is tapped
-                      _nameController.selection = TextSelection(
-                        baseOffset: 0,
-                        extentOffset: _nameController.text.length,
-                      );
-                    },
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: Container(
-                  height: AppConstants.playerRowHeight,
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${widget.currentScore}',
-                      style: TextStyle(
-                        fontSize: 16, 
-                        fontWeight: FontWeight.bold,
-                        color: widget.currentScore < 0 ? AppConstants.negativeScoreColor : null,
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    height: AppConstants.playerRowHeight,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${widget.currentScore}',
+                        style: TextStyle(
+                          fontSize: 16, 
+                          fontWeight: FontWeight.bold,
+                          color: widget.currentScore < 0 ? AppConstants.negativeScoreColor : null,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: SizedBox(
+                    height: AppConstants.playerRowHeight,
+                    child: TextField(
+                      controller: widget.scoreController,
+                      focusNode: widget.scoreFocusNode,
+                      decoration: InputDecoration(
+                        labelText: 'Score',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.grey,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: widget.isNegative ? AppConstants.negativeScoreColor : Colors.grey,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.primaryColor,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        errorText: widget.errorMessage.isNotEmpty ? widget.errorMessage : null,
+                        alignLabelWithHint: true,
+                        floatingLabelAlignment: FloatingLabelAlignment.center,
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: widget.onScoreChanged,
                       textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: widget.isNegative ? AppConstants.negativeScoreColor : null,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: SizedBox(
+                const SizedBox(width: 8),
+                SizedBox(
                   height: AppConstants.playerRowHeight,
-                  child: TextField(
-                    controller: widget.scoreController,
-                    decoration: InputDecoration(
-                      labelText: 'Score',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.grey,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: widget.isNegative ? AppConstants.negativeScoreColor : Colors.grey,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.primaryColor,
-                          width: 2,
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                      errorText: widget.errorMessage.isNotEmpty ? widget.errorMessage : null,
-                      alignLabelWithHint: true,
-                      floatingLabelAlignment: FloatingLabelAlignment.center,
+                  child: IconButton(
+                    icon: Icon(
+                      widget.isNegative ? Icons.remove_circle : Icons.add_circle,
+                      color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
+                      size: 32,
                     ),
-                    keyboardType: TextInputType.number,
-                    onChanged: widget.onScoreChanged,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: widget.isNegative ? AppConstants.negativeScoreColor : null,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    onPressed: widget.onToggleSign,
+                    tooltip: widget.isNegative ? 'Negative Score' : 'Positive Score',
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: AppConstants.playerRowHeight,
-                child: IconButton(
-                  icon: Icon(
-                    widget.isNegative ? Icons.remove_circle : Icons.add_circle,
-                    color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
-                    size: 32,
-                  ),
-                  onPressed: widget.onToggleSign,
-                  tooltip: widget.isNegative ? 'Negative Score' : 'Positive Score',
-                ),
-              ),
-            ],
-          ),
-          if (widget.errorMessage.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4.0, left: 8.0),
-              child: Text(
-                widget.errorMessage,
-                style: const TextStyle(color: Colors.red, fontSize: 12),
-              ),
+              ],
             ),
-        ],
+            if (widget.errorMessage.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0, left: 8.0),
+                child: Text(
+                  widget.errorMessage,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -867,6 +973,7 @@ class PlayerScoreCard extends StatefulWidget {
   final String playerName;
   final int currentScore;
   final TextEditingController scoreController;
+  final FocusNode scoreFocusNode;
   final bool isNegative;
   final String errorMessage;
   final Function(int, String) onPlayerNameChanged;
@@ -879,6 +986,7 @@ class PlayerScoreCard extends StatefulWidget {
     required this.playerName,
     required this.currentScore,
     required this.scoreController,
+    required this.scoreFocusNode,
     required this.isNegative,
     this.errorMessage = '',
     required this.onPlayerNameChanged,
@@ -917,124 +1025,133 @@ class _PlayerScoreCardState extends State<PlayerScoreCard> {
   Widget build(BuildContext context) {
     const double inputHeight = AppConstants.playerRowHeight - 15; // Slightly smaller for card layout
     
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: inputHeight,
-              child: TextField(
-                decoration: InputDecoration(
-                  labelText: 'Player Name',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                ),
-                controller: _nameController,
-                onChanged: (value) => widget.onPlayerNameChanged(widget.playerIndex, value),
-                onTap: () {
-                  // Select all text when field is tapped
-                  _nameController.selection = TextSelection(
-                    baseOffset: 0,
-                    extentOffset: _nameController.text.length,
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: inputHeight,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      behavior: HitTestBehavior.translucent,
+      child: Card(
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: inputHeight,
+                child: TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Player Name',
+                    border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Center(
-                      child: Text(
-                        '${widget.currentScore}',
-                        style: TextStyle(
-                          fontSize: 16, 
-                          fontWeight: FontWeight.bold,
-                          color: widget.currentScore < 0 ? AppConstants.negativeScoreColor : null,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SizedBox(
-                    height: inputHeight,
-                    child: TextField(
-                      controller: widget.scoreController,
-                      decoration: InputDecoration(
-                        labelText: 'Score',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Colors.grey,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: widget.isNegative ? AppConstants.negativeScoreColor : Colors.grey,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.primaryColor,
-                            width: 2,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        errorText: widget.errorMessage.isNotEmpty ? widget.errorMessage : null,
-                        alignLabelWithHint: true,
-                        floatingLabelAlignment: FloatingLabelAlignment.center,
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: widget.onScoreChanged,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: widget.isNegative ? AppConstants.negativeScoreColor : null,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: inputHeight,
-                  child: IconButton(
-                    icon: Icon(
-                      widget.isNegative ? Icons.remove_circle : Icons.add_circle,
-                      color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
-                      size: 28,
-                    ),
-                    onPressed: widget.onToggleSign,
-                    tooltip: widget.isNegative ? 'Negative Score' : 'Positive Score',
-                  ),
-                ),
-              ],
-            ),
-            if (widget.errorMessage.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4.0, left: 8.0),
-                child: Text(
-                  widget.errorMessage,
-                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                  controller: _nameController,
+                  onChanged: (value) => widget.onPlayerNameChanged(widget.playerIndex, value),
+                  onTap: () {
+                    // Select all text when field is tapped
+                    _nameController.selection = TextSelection(
+                      baseOffset: 0,
+                      extentOffset: _nameController.text.length,
+                    );
+                  },
+                  textInputAction: TextInputAction.done,
+                  onEditingComplete: () => FocusScope.of(context).unfocus(),
                 ),
               ),
-          ],
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: inputHeight,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${widget.currentScore}',
+                          style: TextStyle(
+                            fontSize: 16, 
+                            fontWeight: FontWeight.bold,
+                            color: widget.currentScore < 0 ? AppConstants.negativeScoreColor : null,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SizedBox(
+                      height: inputHeight,
+                      child: TextField(
+                        controller: widget.scoreController,
+                        focusNode: widget.scoreFocusNode,
+                        decoration: InputDecoration(
+                          labelText: 'Score',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: widget.isNegative ? AppConstants.negativeScoreColor : Colors.grey,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.primaryColor,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          errorText: widget.errorMessage.isNotEmpty ? widget.errorMessage : null,
+                          alignLabelWithHint: true,
+                          floatingLabelAlignment: FloatingLabelAlignment.center,
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: widget.onScoreChanged,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: widget.isNegative ? AppConstants.negativeScoreColor : null,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: inputHeight,
+                    child: IconButton(
+                      icon: Icon(
+                        widget.isNegative ? Icons.remove_circle : Icons.add_circle,
+                        color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
+                        size: 28,
+                      ),
+                      onPressed: widget.onToggleSign,
+                      tooltip: widget.isNegative ? 'Negative Score' : 'Positive Score',
+                    ),
+                  ),
+                ],
+              ),
+              if (widget.errorMessage.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0, left: 8.0),
+                  child: Text(
+                    widget.errorMessage,
+                    style: const TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -1075,7 +1192,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Center(
+          const Center(
             child: Text(
               'Score History',
               style: AppConstants.headingStyle,
@@ -1095,18 +1212,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _buildPortraitHistoryView() {
     // Calculate column widths based on player count to ensure full width usage
     final screenWidth = MediaQuery.of(context).size.width - 32; // Account for padding
-    final roundColumnWidth = 50.0;
-    final playerColumnWidth = (screenWidth - roundColumnWidth - 32) / widget.playerCount;
+    
+    // Use smaller horizontal margins and spacing
+    const horizontalMargin = 8.0;
+    const columnSpacing = 8.0;
+    
+    // Reduce the round column width slightly
+    const roundColumnWidth = 40.0;
+    
+    // Calculate remaining width available for player columns
+    final availableWidth = screenWidth - (2 * horizontalMargin);
+    final totalSpacing = columnSpacing * widget.playerCount; // Spacing between columns
+    final playerColumnsWidth = availableWidth - roundColumnWidth - totalSpacing;
+    final playerColumnWidth = playerColumnsWidth / widget.playerCount;
     
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          return Container(
+          return SizedBox(
             width: constraints.maxWidth,
             child: DataTable(
-              columnSpacing: 12,
-              horizontalMargin: 16,
+              columnSpacing: columnSpacing,
+              horizontalMargin: horizontalMargin,
               headingRowHeight: 40,
               dataRowMinHeight: 36,
               dataRowMaxHeight: 48,
@@ -1115,7 +1243,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   label: Container(
                     width: roundColumnWidth,
                     alignment: Alignment.center,
-                    child: Text(
+                    child: const Text(
                       'Rnd',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
@@ -1128,7 +1256,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       alignment: Alignment.center,
                       child: Text(
                         widget.playerNames[i],
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                       ),
@@ -1143,7 +1271,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   
                   return DataRow(
                     color: isLatestRound
-                        ? MaterialStateProperty.all(AppConstants.highlightColor)
+                        ? WidgetStateProperty.all(AppConstants.highlightColor)
                         : null,
                     cells: [
                       DataCell(
@@ -1183,18 +1311,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _buildLandscapeHistoryView() {
     // Calculate column widths based on player count to ensure full width usage
     final screenWidth = MediaQuery.of(context).size.width - 32; // Account for padding
-    final roundColumnWidth = 60.0;
-    final playerColumnWidth = (screenWidth - roundColumnWidth - 48) / widget.playerCount;
+    
+    // Use smaller horizontal margins and spacing
+    const horizontalMargin = 12.0;
+    const columnSpacing = 12.0;
+    
+    // Reduce the round column width slightly for consistency
+    const roundColumnWidth = 50.0;
+    
+    // Calculate remaining width available for player columns
+    final availableWidth = screenWidth - (2 * horizontalMargin);
+    final totalSpacing = columnSpacing * widget.playerCount; // Spacing between columns
+    final playerColumnsWidth = availableWidth - roundColumnWidth - totalSpacing;
+    final playerColumnWidth = playerColumnsWidth / widget.playerCount;
     
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          return Container(
+          return SizedBox(
             width: constraints.maxWidth,
             child: DataTable(
-              columnSpacing: 20,
-              horizontalMargin: 24,
+              columnSpacing: columnSpacing,
+              horizontalMargin: horizontalMargin,
               headingRowHeight: 48,
               dataRowMinHeight: 40,
               dataRowMaxHeight: 56,
@@ -1203,7 +1342,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   label: Container(
                     width: roundColumnWidth,
                     alignment: Alignment.center,
-                    child: Text(
+                    child: const Text(
                       'Round',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
@@ -1216,7 +1355,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       alignment: Alignment.center,
                       child: Text(
                         widget.playerNames[i],
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -1230,7 +1369,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   
                   return DataRow(
                     color: isLatestRound
-                        ? MaterialStateProperty.all(AppConstants.highlightColor)
+                        ? WidgetStateProperty.all(AppConstants.highlightColor)
                         : null,
                     cells: [
                       DataCell(
@@ -1272,9 +1411,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     
     if (roundNumber == totalRounds) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('This is already the latest round.'),
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: 2),
         ),
       );
       return;
@@ -1374,36 +1513,48 @@ class NewGameScreen extends StatelessWidget {
   }
 
   Widget _buildPortraitLayout(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
+            const Text(
           'Select Number of Players',
           style: AppConstants.headingStyle,
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 32),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            for (int i = 2; i <= 4; i++)
-              ElevatedButton(
-                onPressed: () => onNewGame(i),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Wrap(
+            alignment: WrapAlignment.spaceEvenly,
+            spacing: 12,
+            runSpacing: 16,
+            children: [
+              for (int i = 2; i <= 4; i++)
+                SizedBox(
+                  width: (screenWidth - 80) / 3,
+                  child: ElevatedButton(
+                    onPressed: () => onNewGame(i),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                      ),
+                    ),
+                    child: Text('$i Players'),
                   ),
-                ),
-                child: Text('$i Players'),
-              ),
+            ),
           ],
         ),
+      ),
         const SizedBox(height: 32),
-        const Text(
-          'Start a new card game and track scores for each player across multiple rounds.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24.0),
+          child: Text(
+            'Start a new game and track scores for each player across multiple rounds.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16),
+          ),
         ),
       ],
     );
@@ -1412,7 +1563,7 @@ class NewGameScreen extends StatelessWidget {
   Widget _buildLandscapeLayout(BuildContext context) {
     return Row(
       children: [
-        Expanded(
+        const Expanded(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -1421,9 +1572,9 @@ class NewGameScreen extends StatelessWidget {
                 style: AppConstants.headingStyle,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Start a new card game and track scores for each player across multiple rounds.',
+              SizedBox(height: 16),
+              Text(
+                'Start a new game and track scores for each player across multiple rounds.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16),
               ),
@@ -1483,7 +1634,7 @@ class GraphScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          Text(
+          const Text(
             'Score Progression',
             style: AppConstants.headingStyle,
           ),

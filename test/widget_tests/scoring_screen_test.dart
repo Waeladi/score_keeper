@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_keeper/main.dart';
-import 'package:score_keeper/utils/constants.dart';
 
 void main() {
   testWidgets('ScoringScreen shows correct round number', (WidgetTester tester) async {
@@ -9,8 +8,8 @@ void main() {
       MaterialApp(
         home: ScoringScreen(
           playerCount: 2,
-          playerNames: ['Player 1', 'Player 2'],
-          currentScores: [0, 0],
+          playerNames: const ['Player 1', 'Player 2'],
+          currentScores: const [0, 0],
           currentRound: 3,
           defaultNegative: false,
           onPlayerNameChanged: (_, __) {},
@@ -28,8 +27,8 @@ void main() {
       MaterialApp(
         home: ScoringScreen(
           playerCount: 2,
-          playerNames: ['Player 1', 'Player 2'],
-          currentScores: [0, 0],
+          playerNames: const ['Player 1', 'Player 2'],
+          currentScores: const [0, 0],
           currentRound: 1,
           defaultNegative: false,
           onPlayerNameChanged: (_, __) {},
@@ -58,8 +57,8 @@ void main() {
       MaterialApp(
         home: ScoringScreen(
           playerCount: 2,
-          playerNames: ['Player 1', 'Player 2'],
-          currentScores: [10, 20],
+          playerNames: const ['Player 1', 'Player 2'],
+          currentScores: const [10, 20],
           currentRound: 1,
           defaultNegative: false,
           onPlayerNameChanged: (_, __) {},

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "448717704629",
+    "project_id": "gamescore-c2ce9",
+    "storage_bucket": "gamescore-c2ce9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:448717704629:android:76e7addb22fd41d42e1dfc",
+        "android_client_info": {
+          "package_name": "com.waelapps.score_keeper"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBniMBN0YjCqZ446Z-VN85x1ISac-lTj2I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

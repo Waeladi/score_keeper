@@ -38,58 +38,83 @@ class GameState {
 
   // Load game state from SharedPreferences
   static Future<GameState> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    final isGameStarted = prefs.getBool('isGameStarted') ?? false;
-    if (!isGameStarted) {
-      return GameState();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final gameStateJson = prefs.getString('gameState');
+      
+      if (gameStateJson == null || gameStateJson.isEmpty) {
+        return GameState(isGameStarted: false); // Fresh state
+      }
+      
+      try {
+        final Map<String, dynamic> gameStateMap = jsonDecode(gameStateJson);
+        return GameState(
+          isGameStarted: gameStateMap['isGameStarted'] ?? false,
+          playerCount: gameStateMap['playerCount'] ?? 0,
+          playerNames: List<String>.from(gameStateMap['playerNames'] ?? []),
+          currentScores: List<int>.from(gameStateMap['currentScores'] ?? []),
+          scoreHistory: List<List<int>>.from(
+            (gameStateMap['scoreHistory'] ?? []).map((e) => List<int>.from(e))
+          ),
+          currentRound: gameStateMap['currentRound'] ?? 1,
+          defaultNegative: gameStateMap['defaultNegative'] ?? false,
+        );
+      } catch (e) {
+        print('Error parsing saved game state: $e');
+        return GameState(isGameStarted: false);
+      }
+    } catch (e) {
+      print('Error loading game state: $e');
+      return GameState(isGameStarted: false);
     }
-    
-    final playerCount = prefs.getInt('playerCount') ?? 2;
-    
-    List<String> playerNames = List.generate(4, (index) => "Player ${index + 1}");
-    final playerNamesJson = prefs.getStringList('playerNames');
-    if (playerNamesJson != null) {
-      playerNames = playerNamesJson;
+  }
+
+  // Make fromJson more robust with null checks and defaults
+  factory GameState.fromJson(Map<String, dynamic> json) {
+    try {
+      List<String> playerNames = [];
+      List<int> currentScores = [];
+      List<List<int>> scoreHistory = [];
+      
+      // Handle player names with null checks
+      if (json['playerNames'] != null) {
+        playerNames = List<String>.from(json['playerNames']);
+      } else {
+        playerNames = List.filled(json['playerCount'] ?? 0, '');
+      }
+      
+      // Handle current scores with null checks
+      if (json['currentScores'] != null) {
+        currentScores = List<int>.from(json['currentScores']);
+      } else {
+        currentScores = List.filled(json['playerCount'] ?? 0, 0);
+      }
+      
+      // Handle score history with null checks
+      if (json['scoreHistory'] != null) {
+        scoreHistory = List<List<int>>.from(
+          json['scoreHistory'].map((round) => List<int>.from(round))
+        );
+      }
+      
+      return GameState(
+        playerCount: json['playerCount'] ?? 0,
+        playerNames: playerNames,
+        currentScores: currentScores,
+        scoreHistory: scoreHistory,
+        defaultNegative: json['defaultNegative'] ?? false,
+      );
+    } catch (e) {
+      print('Error in fromJson: $e');
+      // Return a safe default state
+      return GameState.newGame(0);
     }
-    
-    List<int> currentScores = List.filled(4, 0);
-    final currentScoresJson = prefs.getString('currentScores');
-    if (currentScoresJson != null) {
-      currentScores = List<int>.from(jsonDecode(currentScoresJson));
-    }
-    
-    List<List<int>> scoreHistory = [];
-    final scoreHistoryJson = prefs.getString('scoreHistory');
-    if (scoreHistoryJson != null) {
-      final List<dynamic> decodedHistory = jsonDecode(scoreHistoryJson);
-      scoreHistory = decodedHistory.map((round) => List<int>.from(round)).toList();
-    }
-    
-    final currentRound = prefs.getInt('currentRound') ?? 1;
-    final defaultNegative = prefs.getBool('defaultNegative') ?? false;
-    
-    return GameState(
-      isGameStarted: isGameStarted,
-      playerCount: playerCount,
-      playerNames: playerNames,
-      currentScores: currentScores,
-      scoreHistory: scoreHistory,
-      currentRound: currentRound,
-      defaultNegative: defaultNegative,
-    );
   }
 
   // Save game state to SharedPreferences
   Future<void> save() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isGameStarted', isGameStarted);
-    await prefs.setInt('playerCount', playerCount);
-    await prefs.setStringList('playerNames', playerNames);
-    await prefs.setString('currentScores', jsonEncode(currentScores));
-    await prefs.setString('scoreHistory', jsonEncode(scoreHistory));
-    await prefs.setInt('currentRound', currentRound);
-    await prefs.setBool('defaultNegative', defaultNegative);
+    await prefs.setString('gameState', jsonEncode(toJson()));
   }
 
   // Update a player's name
@@ -126,4 +151,14 @@ class GameState {
   void setDefaultNegative(bool value) {
     defaultNegative = value;
   }
+
+  Map<String, dynamic> toJson() => {
+    'isGameStarted': isGameStarted,
+    'playerCount': playerCount,
+    'playerNames': playerNames,
+    'currentScores': currentScores,
+    'scoreHistory': scoreHistory,
+    'currentRound': currentRound,
+    'defaultNegative': defaultNegative,
+  };
 } 

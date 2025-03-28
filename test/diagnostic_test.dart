@@ -86,9 +86,16 @@ void _printWidgetTree(Element element, String prefix, bool isLast) {
   
   print('$prefix${isLast ? '└── ' : '├── '}$widgetType$text');
   
-  element.visitChildren((child) {
+  // Collect all children first
+  final List<Element> children = [];
+  element.visitChildren(children.add);
+  
+  // Then process them with index information
+  for (int i = 0; i < children.length; i++) {
+    final child = children[i];
+    final isLastChild = i == children.length - 1;
     final newPrefix = prefix + (isLast ? '    ' : '│   ');
-    final isLastChild = !element.visitChildren((nextChild) => nextChild != child);
+    
     _printWidgetTree(child, newPrefix, isLastChild);
-  });
-} 
+  }
+}
