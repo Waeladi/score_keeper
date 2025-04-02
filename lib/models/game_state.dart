@@ -43,14 +43,21 @@ class GameState {
       final gameStateJson = prefs.getString('gameState');
       
       if (gameStateJson == null || gameStateJson.isEmpty) {
-        return GameState(isGameStarted: false); // Fresh state
+        return GameState(isGameStarted: false);
       }
       
       try {
         final Map<String, dynamic> gameStateMap = jsonDecode(gameStateJson);
+        // Add validation for critical fields
+        if (gameStateMap['playerCount'] == null || 
+            gameStateMap['playerCount']! < 2 || 
+            gameStateMap['playerCount']! > 4) {
+          throw FormatException('Invalid player count');
+        }
+        
         return GameState(
           isGameStarted: gameStateMap['isGameStarted'] ?? false,
-          playerCount: gameStateMap['playerCount'] ?? 0,
+          playerCount: gameStateMap['playerCount'] ?? 2,
           playerNames: List<String>.from(gameStateMap['playerNames'] ?? []),
           currentScores: List<int>.from(gameStateMap['currentScores'] ?? []),
           scoreHistory: List<List<int>>.from(
@@ -61,6 +68,8 @@ class GameState {
         );
       } catch (e) {
         print('Error parsing saved game state: $e');
+        // Clear corrupted data
+        await prefs.remove('gameState');
         return GameState(isGameStarted: false);
       }
     } catch (e) {

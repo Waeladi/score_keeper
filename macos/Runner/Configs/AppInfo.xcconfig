@@ -8,7 +8,7 @@
 PRODUCT_NAME = score_keeper
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.waelapps.scoreKeeper
+PRODUCT_BUNDLE_IDENTIFIER = com.waelapps.score_keeper
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 com.waelapps. All rights reserved.

@@ -1,0 +1,27 @@
+{
+  "name": "cursor-mcp-server",
+  "version": "1.0.0",
+  "description": "Custom MCP server for Cursor IDE",
+  "main": "mcp-server/server.js",
+  "scripts": {
+    "start": "node mcp-server/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Waeladi/cursor-mcp-server.git"
+  },
+  "keywords": [
+    "cursor",
+    "mcp",
+    "ai",
+    "github"
+  ],
+  "author": "Waeladi",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.2",
+    "cors": "^2.8.5"
+  }
+} 

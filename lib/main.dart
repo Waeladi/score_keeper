@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -5,34 +6,31 @@ import 'firebase_options.dart';
 import 'score_chart.dart';
 import 'models/game_state.dart';
 import 'utils/constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
-void main() async {
-  // Ensure Flutter is initialized
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   
-  try {
-    // Initialize Firebase
+  runZonedGuarded(() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
-    ).then((value) => print('Firebase initialized successfully'));
+    );
     
-    // Create analytics instance
-    final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+    // Initialize Crashlytics
+    await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
     
-    // Run your app
-    runApp(ScoreKeeperApp(analytics: analytics));
-  } catch (e, stack) {
-    print('Error initializing app: $e');
-    print('Stack trace: $stack');
-    // Show error UI instead of silent fallback
-    runApp(MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Critical Error: $e'),
-        ),
-      ),
+    // Add 2 second delay for native initialization
+    await Future.delayed(const Duration(seconds: 2));
+    
+    runApp(ScoreKeeperApp(
+      analytics: FirebaseAnalytics.instance,
     ));
-  }
+  }, (error, stackTrace) {
+    print('Global error caught: $error');
+    FirebaseCrashlytics.instance.recordError(error, stackTrace);
+  });
 }
 
 class ScoreKeeperApp extends StatelessWidget {
@@ -89,12 +87,24 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _loadGameState() async {
-    final gameState = await GameState.load();
-    setState(() {
-      _gameState = gameState;
-      _isLoading = false;
-      _selectedIndex = _gameState.isGameStarted ? 0 : 2; // Switch to Home if game exists
-    });
+    try {
+      final gameState = await GameState.load();
+      setState(() {
+        _gameState = gameState;
+        _isLoading = false;
+        _selectedIndex = _gameState.isGameStarted ? 0 : 2;
+      });
+    } catch (e, stackTrace) {
+      print('Critical error loading state: $e\n$stackTrace');
+      // Reset to clean state
+      setState(() {
+        _gameState = GameState(isGameStarted: false);
+        _isLoading = false;
+        _selectedIndex = 2;
+      });
+      // Clear any corrupted preferences
+      await (await SharedPreferences.getInstance()).remove('gameState');
+    }
   }
 
   void _startNewGame(int playerCount) {
@@ -342,32 +352,30 @@ class _ScoringScreenState extends State<ScoringScreen> {
   bool _validateScores() {
     bool isValid = true;
     List<String> errorMessages = [];
-    
+
     for (int i = 0; i < widget.playerCount; i++) {
-      if (_scoreControllers[i].text.isEmpty) {
-        errorMessages.add('${widget.playerNames[i]}: Score is required');
-        isValid = false;
-        continue;
-      }
-      
-      try {
-        int score = int.parse(_scoreControllers[i].text);
-        
-        if (score < 0) {
-          errorMessages.add('${widget.playerNames[i]}: Use +/- toggle for negative scores');
+      // Only validate if text has been entered
+      if (_scoreControllers[i].text.isNotEmpty) {
+        try {
+          int score = int.parse(_scoreControllers[i].text);
+          if (score < 0) {
+            // This check might be redundant if using the toggle, but good practice
+            errorMessages.add('${widget.playerNames[i]}: Use +/- toggle for negative scores');
+            isValid = false;
+          }
+        } catch (e) {
+          errorMessages.add('${widget.playerNames[i]}: Invalid number');
           isValid = false;
         }
-      } catch (e) {
-        errorMessages.add('${widget.playerNames[i]}: Invalid number');
-        isValid = false;
       }
+      // Empty score field is now considered valid during validation
     }
-    
+
     if (!isValid) {
-      String errorMessage = errorMessages.length > 1 
-          ? 'Please enter valid scores for all players' 
+      String errorMessage = errorMessages.length > 1
+          ? 'Please fix invalid score entries'
           : errorMessages.first;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
@@ -376,7 +384,7 @@ class _ScoringScreenState extends State<ScoringScreen> {
         ),
       );
     }
-    
+
     return isValid;
   }
 
@@ -384,25 +392,28 @@ class _ScoringScreenState extends State<ScoringScreen> {
     if (!_validateScores()) {
       return; // Error message already shown in _validateScores
     }
-    
+
     List<int> roundScores = List.filled(4, 0);
-    
+
     for (int i = 0; i < widget.playerCount; i++) {
-      int score = int.parse(_scoreControllers[i].text);
-      
+      int score = 0; // Default to 0 if empty
+      if (_scoreControllers[i].text.isNotEmpty) {
+        score = int.parse(_scoreControllers[i].text); // Validation ensures this parse succeeds
+      }
+
       if (_isNegativeScore[i]) {
         score = -score;
       }
-      
+
       roundScores[i] = score;
       _scoreControllers[i].clear();
     }
-    
+
     widget.onScoresSubmitted(roundScores);
     setState(() {
       _isNegativeScore = List.generate(4, (index) => _defaultNegative);
     });
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Scores for round ${widget.currentRound} submitted'),
