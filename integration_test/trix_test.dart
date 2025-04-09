@@ -1,4 +1,6 @@
+// ignore_for_file: avoid_print
 import 'dart:math';
+import 'package:flutter/foundation.dart'; // Import for debugPrint
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -13,19 +15,19 @@ void main() {
       // Configure random generator with fixed seed for reproducibility
       final random = Random(42);
       
-      print('🎮 Starting Trix Test - Game Scores App Simulation');
+      debugPrint('🎮 Starting Trix Test - Game Scores App Simulation');
       
       // 1. Start a fresh instance of the app
       app.main();
       await tester.pumpAndSettle();
-      print('🎮 App launched');
+      debugPrint('🎮 App launched');
       
       // 2. Select 4 players
       final playerButton = find.text('4 Players');
       expect(playerButton, findsOneWidget, reason: 'Could not find 4 Players button');
       await tester.tap(playerButton);
       await tester.pumpAndSettle();
-      print('🎮 Selected 4 players');
+      debugPrint('🎮 Selected 4 players');
       
       // 3. Give players names - ensuring each field is visible before entering text
       final playerNames = ['Alice', 'Bob', 'Charlie', 'Dana'];
@@ -33,18 +35,18 @@ void main() {
       // Instead of finding all fields at once, find and interact with them one by one
       // This ensures we can scroll to each field as needed
       for (int i = 0; i < 4; i++) {
-        print('🎮 Entering name for player ${i+1}: ${playerNames[i]}');
+        debugPrint('🎮 Entering name for player ${i+1}: ${playerNames[i]}');
         
         // Find all name fields first to get a count
         final allNameFields = find.byType(TextField).evaluate()
           .where((element) => (element.widget as TextField).decoration?.labelText == 'Player Name')
           .toList();
         
-        print('🎮 Found ${allNameFields.length} name fields');
+        debugPrint('🎮 Found ${allNameFields.length} name fields');
         
         // Make sure we have the expected number of fields
         if (allNameFields.length != 4) {
-          print('⚠️ Warning: Expected 4 name fields, found ${allNameFields.length}');
+          debugPrint('⚠️ Warning: Expected 4 name fields, found ${allNameFields.length}');
         }
         
         // Find the specific player name field by index
@@ -67,7 +69,7 @@ void main() {
         await tester.pumpAndSettle(const Duration(milliseconds: 300));
       }
       
-      print('🎮 Entered all player names: ${playerNames.join(", ")}');
+      debugPrint('🎮 Entered all player names: ${playerNames.join(", ")}');
       
       // 4. Change default scoring to negative
       // First ensure the toggle is visible
@@ -78,20 +80,20 @@ void main() {
       expect(defaultToggle, findsOneWidget, reason: 'Could not find default sign toggle');
       await tester.tap(defaultToggle);
       await tester.pumpAndSettle();
-      print('🎮 Switched default scoring to negative');
+      debugPrint('🎮 Switched default scoring to negative');
       
       // Function to enter scores for a round to avoid code duplication
       Future<void> enterRoundScores(int round, List<int> scores) async {
-        print('🎮 Entering scores for Round $round');
-        print('🎮 Generated scores: ${scores.join(", ")}');
+        debugPrint('🎮 Entering scores for Round $round');
+        debugPrint('🎮 Generated scores: ${scores.join(", ")}');
         
         // Get a list of all player cards/rows - these are more stable containers
         final playerCards = find.byType(Card).evaluate().toList();
-        print('🎮 Found ${playerCards.length} player cards');
+        debugPrint('🎮 Found ${playerCards.length} player cards');
         
         // Process each player card (0-indexed)
         for (int i = 0; i < 4; i++) {
-          print('🎮 Processing player ${i+1} (${playerNames[i]}) with score ${scores[i]}');
+          debugPrint('🎮 Processing player ${i+1} (${playerNames[i]}) with score ${scores[i]}');
           
           // Find the score field within this player's card
           final playerCard = playerCards[i];
@@ -104,7 +106,7 @@ void main() {
           }).toList();
           
           if (scoreFields.isEmpty) {
-            print('⚠️ Warning: Could not find score field for player ${i+1}');
+            debugPrint('⚠️ Warning: Could not find score field for player ${i+1}');
             continue;
           }
           
@@ -130,9 +132,9 @@ void main() {
               await tester.pumpAndSettle();
               await tester.tap(signToggle.first);
               await tester.pumpAndSettle();
-              print('🎮 Toggled sign for player ${i+1} to positive');
+              debugPrint('🎮 Toggled sign for player ${i+1} to positive');
             } else {
-              print('⚠️ Warning: Could not find sign toggle for player ${i+1}');
+              debugPrint('⚠️ Warning: Could not find sign toggle for player ${i+1}');
             }
           }
           
@@ -150,7 +152,7 @@ void main() {
             scores[i].abs().toString()
           );
           await tester.pumpAndSettle();
-          print('🎮 Entered score ${scores[i].abs()} for player ${i+1}');
+          debugPrint('🎮 Entered score ${scores[i].abs()} for player ${i+1}');
           
           // Dismiss keyboard after each entry
           await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -164,7 +166,7 @@ void main() {
         
         await tester.tap(submitButton);
         await tester.pumpAndSettle();
-        print('🎮 Submitted scores for Round $round');
+        debugPrint('🎮 Submitted scores for Round $round');
       }
       
       // 5. Enter 4 rounds of random scores with constraints
@@ -181,11 +183,11 @@ void main() {
       
       await tester.tap(historyTab);
       await tester.pumpAndSettle();
-      print('🎮 Navigated to History tab');
+      debugPrint('🎮 Navigated to History tab');
       
       // Stay on History tab for 4 seconds
       await tester.pump(const Duration(seconds: 4));
-      print('🎮 Stayed on History tab for 4 seconds');
+      debugPrint('🎮 Stayed on History tab for 4 seconds');
       
       // 7. Navigate to Graph tab and stay for 4 seconds
       final graphTab = find.text('Graph');
@@ -194,11 +196,11 @@ void main() {
       
       await tester.tap(graphTab);
       await tester.pumpAndSettle();
-      print('🎮 Navigated to Graph tab');
+      debugPrint('🎮 Navigated to Graph tab');
       
       // Stay on Graph tab for 4 seconds
       await tester.pump(const Duration(seconds: 4));
-      print('🎮 Stayed on Graph tab for 4 seconds');
+      debugPrint('🎮 Stayed on Graph tab for 4 seconds');
       
       // 8. Go back to Home tab
       final homeTab = find.text('Home');
@@ -207,7 +209,7 @@ void main() {
       
       await tester.tap(homeTab);
       await tester.pumpAndSettle();
-      print('🎮 Returned to Home tab');
+      debugPrint('🎮 Returned to Home tab');
       
       // 9. Enter 4 more rounds with the same constraints
       for (int round = 5; round <= 8; round++) {
@@ -217,8 +219,8 @@ void main() {
       }
       
       // 10. Keep the app open for manual review (don't tear down)
-      print('🎮 Test complete - App left open for manual review');
-      print('🎮 Final state after 8 rounds of play with 4 players');
+      debugPrint('🎮 Test complete - App left open for manual review');
+      debugPrint('🎮 Final state after 8 rounds of play with 4 players');
       
       // The tester will automatically dispose after a timeout, but we want to keep it open
       // We can use a very long delay to give the user time to review

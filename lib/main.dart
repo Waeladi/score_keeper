@@ -11,9 +11,12 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
+  // WidgetsFlutterBinding.ensureInitialized(); // <-- MOVE THIS LINE
   
   runZonedGuarded(() async {
+    // Ensure bindings are initialized WITHIN the zone
+    WidgetsFlutterBinding.ensureInitialized(); // <-- TO HERE
+    
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
@@ -208,6 +211,63 @@ class _MainScreenState extends State<MainScreen> {
     print('Firebase Analytics: Logged navigation to ${tabNames[index]}');
   }
 
+  // Method to handle the actual reset logic
+  void _resetCurrentGame() {
+    setState(() {
+      _gameState.currentScores = List.filled(4, 0); // Reset scores for all potential player slots
+      _gameState.scoreHistory.clear();
+      _gameState.currentRound = 1;
+      // _gameState.playerNames and _gameState.playerCount remain unchanged
+      _selectedIndex = 0; // Switch to Home tab after reset
+    });
+    _gameState.save(); // Save the reset state
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Game Reset! Scores and history cleared.'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+  }
+  
+  // Method to show the confirmation dialog before resetting
+  void _showResetConfirmationDialog() {
+    // Ensure there's actually a game to reset
+    if (!_gameState.isGameStarted || _gameState.scoreHistory.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No game progress to reset.'),
+          backgroundColor: Colors.blueGrey,
+        ),
+      );
+      return;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Current Game?'),
+        content: const Text(
+          'This will clear all scores for the current players. Player names will be kept. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () {
+              Navigator.of(context).pop(); // Close the dialog
+              _resetCurrentGame(); // Perform the reset
+            },
+            child: const Text('Reset Game'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -240,6 +300,8 @@ class _MainScreenState extends State<MainScreen> {
       ),
       NewGameScreen(
         onNewGame: _startNewGame,
+        onResetGame: _showResetConfirmationDialog,
+        currentGameState: _gameState,
         showAppBar: false,
       ),
       GraphScreen(
@@ -1489,128 +1551,100 @@ class _HistoryScreenState extends State<HistoryScreen> {
 // New Game Screen
 class NewGameScreen extends StatelessWidget {
   final Function(int) onNewGame;
+  final Function()? onResetGame; // Callback for reset action
+  final GameState? currentGameState; // Pass current state to check if game is started
   final bool showAppBar;
 
   const NewGameScreen({
     super.key,
     required this.onNewGame,
+    this.onResetGame,
+    this.currentGameState,
     this.showAppBar = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final orientation = MediaQuery.of(context).orientation;
-    final isLandscape = orientation == Orientation.landscape;
-
-    final Widget body = Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: isLandscape
-            ? _buildLandscapeLayout(context)
-            : _buildPortraitLayout(context),
-      ),
-    );
-
-    if (showAppBar) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('New Game'),
-        ),
-        body: body,
-      );
-    } else {
-      return body;
-    }
-  }
-
-  Widget _buildPortraitLayout(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    // Determine if the reset section should be shown
+    final bool canReset = currentGameState != null && currentGameState!.isGameStarted;
     
-    return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-            const Text(
-          'Select Number of Players',
-          style: AppConstants.headingStyle,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 32),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Wrap(
-            alignment: WrapAlignment.spaceEvenly,
-            spacing: 12,
-            runSpacing: 16,
-            children: [
-              for (int i = 2; i <= 4; i++)
-                SizedBox(
-                  width: (screenWidth - 80) / 3,
-                  child: ElevatedButton(
-                    onPressed: () => onNewGame(i),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 16,
-                      ),
+    // Get player names string for the reset description
+    String playerNamesString = "";
+    if (canReset) {
+      playerNamesString = currentGameState!.playerNames
+          .sublist(0, currentGameState!.playerCount)
+          .join(', ');
+    }
+    
+    return Scaffold(
+      appBar: showAppBar ? AppBar(title: const Text('New Game Setup')) : null,
+      body: Padding(
+        padding: const EdgeInsets.all(AppConstants.defaultPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, 
+          children: [
+            // --- Reset Current Game Section (Conditional) ---
+            if (canReset)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 32.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reset Current Game',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
-                    child: Text('$i Players'),
-                  ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Keep the current players ($playerNamesString) but clear all scores to start from Round 1.',
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: onResetGame, // Call the callback passed from MainScreen
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange, // Distinct color for reset
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(46),
+                      ),
+                      child: const Text('Reset Game'),
+                    ),
+                    const Divider(height: 40, thickness: 1),
+                  ],
+                ),
+              ),
+            
+            // --- Start New Game Section ---
+            const Text(
+              'Start New Game',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Select the number of players for a completely new game. This will erase any current game progress.',
+              style: TextStyle(color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 16),
+            // Player count buttons
+            Column(
+              children: List.generate(3, (index) {
+                int count = index + 2;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: ElevatedButton(
+                    onPressed: () => onNewGame(count),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(46),
+                    ),
+                    child: Text('$count Players'),
+                  ),
+                );
+              }),
+            ),
+            const Spacer(), // Pushes content to the top
           ],
         ),
       ),
-        const SizedBox(height: 32),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24.0),
-          child: Text(
-            'Start a new game and track scores for each player across multiple rounds.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLandscapeLayout(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Select Number of Players',
-                style: AppConstants.headingStyle,
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Start a new game and track scores for each player across multiple rounds.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (int i = 2; i <= 4; i++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: ElevatedButton(
-                    onPressed: () => onNewGame(i),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(200, 50),
-                    ),
-                    child: Text('$i Players'),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

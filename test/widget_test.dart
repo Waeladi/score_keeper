@@ -12,7 +12,7 @@ import 'package:score_keeper/models/game_state.dart';
 void main() {
   testWidgets('App should start with New Game screen', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const ScoreKeeperApp());
+    await tester.pumpWidget(const ScoreKeeperApp(analytics: null));
 
     // Verify that the New Game screen is shown
     expect(find.text('Select Number of Players'), findsOneWidget);

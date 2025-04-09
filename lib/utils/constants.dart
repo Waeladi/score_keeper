@@ -54,6 +54,7 @@ class AppConstants {
   static const int minScoreValue = -99999;
   
   // Layout
+  static const double defaultPadding = 16.0;
   static const double playerRowHeight = 60.0;
   static const double scoreBoxHeight = 80.0;
 } 
