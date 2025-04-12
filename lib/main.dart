@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'firebase_options.dart';
 import 'score_chart.dart';
 import 'models/game_state.dart';
@@ -959,7 +960,7 @@ class _PlayerScoreRowState extends State<PlayerScoreRow> {
                         style: TextStyle(
                           fontSize: 16, 
                           fontWeight: FontWeight.bold,
-                          color: widget.currentScore < 0 ? AppConstants.negativeScoreColor : null,
+                          color: widget.currentScore < 0 ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -985,13 +986,13 @@ class _PlayerScoreRowState extends State<PlayerScoreRow> {
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
-                            color: widget.isNegative ? AppConstants.negativeScoreColor : Colors.grey,
+                            color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
-                            color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.primaryColor,
+                            color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                             width: 2,
                           ),
                         ),
@@ -1004,7 +1005,7 @@ class _PlayerScoreRowState extends State<PlayerScoreRow> {
                       onChanged: widget.onScoreChanged,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: widget.isNegative ? AppConstants.negativeScoreColor : null,
+                        color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -1013,14 +1014,24 @@ class _PlayerScoreRowState extends State<PlayerScoreRow> {
                 const SizedBox(width: 8),
                 SizedBox(
                   height: AppConstants.playerRowHeight,
-                  child: IconButton(
-                    icon: Icon(
-                      widget.isNegative ? Icons.remove_circle : Icons.add_circle,
-                      color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
-                      size: 32,
+                  width: 44, // Give button a defined width
+                  child: InkWell( // Use InkWell for tap effect
+                    onTap: widget.onToggleSign,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: widget.isNegative ? AppConstants.negativeScoreColor.withOpacity(0.8) : AppConstants.positiveScoreColor.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(12), // Match TextField rounding
+                      ),
+                      child: Center(
+                        child: Image.asset(
+                          'assets/icon/plus_minus.png', // Path to your PNG
+                          width: 24, 
+                          height: 24,
+                          fit: BoxFit.contain,
+                          semanticLabel: 'Toggle Score Sign',
+                        ),
+                      ),
                     ),
-                    onPressed: widget.onToggleSign,
-                    tooltip: widget.isNegative ? 'Negative Score' : 'Positive Score',
                   ),
                 ),
               ],
@@ -1150,7 +1161,7 @@ class _PlayerScoreCardState extends State<PlayerScoreCard> {
                           style: TextStyle(
                             fontSize: 16, 
                             fontWeight: FontWeight.bold,
-                            color: widget.currentScore < 0 ? AppConstants.negativeScoreColor : null,
+                            color: widget.currentScore < 0 ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -1175,13 +1186,13 @@ class _PlayerScoreCardState extends State<PlayerScoreCard> {
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide(
-                              color: widget.isNegative ? AppConstants.negativeScoreColor : Colors.grey,
+                              color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide(
-                              color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.primaryColor,
+                              color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                               width: 2,
                             ),
                           ),
@@ -1194,7 +1205,7 @@ class _PlayerScoreCardState extends State<PlayerScoreCard> {
                         onChanged: widget.onScoreChanged,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: widget.isNegative ? AppConstants.negativeScoreColor : null,
+                          color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1203,14 +1214,24 @@ class _PlayerScoreCardState extends State<PlayerScoreCard> {
                   const SizedBox(width: 8),
                   SizedBox(
                     height: inputHeight,
-                    child: IconButton(
-                      icon: Icon(
-                        widget.isNegative ? Icons.remove_circle : Icons.add_circle,
-                        color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
-                        size: 28,
+                    width: 44, // Give button a defined width
+                    child: InkWell( // Use InkWell for tap effect
+                      onTap: widget.onToggleSign,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: widget.isNegative ? AppConstants.negativeScoreColor.withOpacity(0.8) : AppConstants.positiveScoreColor.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(12), // Match TextField rounding
+                        ),
+                        child: Center(
+                          child: Image.asset(
+                            'assets/icon/plus_minus.png', // Path to your PNG
+                            width: 20, 
+                            height: 20,
+                            fit: BoxFit.contain,
+                            semanticLabel: 'Toggle Score Sign',
+                          ),
+                        ),
                       ),
-                      onPressed: widget.onToggleSign,
-                      tooltip: widget.isNegative ? 'Negative Score' : 'Positive Score',
                     ),
                   ),
                 ],
@@ -1363,7 +1384,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             child: Text(
                               '${widget.scoreHistory[index][i]}',
                               style: TextStyle(
-                                color: widget.scoreHistory[index][i] < 0 ? AppConstants.negativeScoreColor : null,
+                                color: widget.scoreHistory[index][i] < 0 ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                                 fontWeight: isLatestRound ? FontWeight.bold : FontWeight.normal,
                               ),
                             ),
@@ -1461,7 +1482,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             child: Text(
                               '${widget.scoreHistory[index][i]}',
                               style: TextStyle(
-                                color: widget.scoreHistory[index][i] < 0 ? AppConstants.negativeScoreColor : null,
+                                color: widget.scoreHistory[index][i] < 0 ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                                 fontWeight: isLatestRound ? FontWeight.bold : FontWeight.normal,
                               ),
                             ),
