@@ -2,7 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+// import 'package:flutter_svg/flutter_svg.dart'; // Removed unused import
+import 'package:package_info_plus/package_info_plus.dart'; // Import package info
 import 'firebase_options.dart';
 import 'score_chart.dart';
 import 'models/game_state.dart';
@@ -82,12 +83,15 @@ class _MainScreenState extends State<MainScreen> {
   late int _selectedIndex;
   late GameState _gameState;
   bool _isLoading = true;
+  String _appVersion = ''; // State variable for version
+  String _buildNumber = ''; // State variable for build number
 
   @override
   void initState() {
     super.initState();
-    _selectedIndex = 2; // Start with New Game tab
+    _selectedIndex = 2; // Default for initial load
     _loadGameState();
+    _loadPackageInfo(); // Load version info
   }
 
   Future<void> _loadGameState() async {
@@ -108,6 +112,23 @@ class _MainScreenState extends State<MainScreen> {
       });
       // Clear any corrupted preferences
       await (await SharedPreferences.getInstance()).remove('gameState');
+    }
+  }
+
+  Future<void> _loadPackageInfo() async {
+    try {
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _appVersion = packageInfo.version;
+        _buildNumber = packageInfo.buildNumber;
+      });
+    } catch (e) {
+      debugPrint('Error loading package info: $e');
+      // Handle error if needed, maybe set default values
+      setState(() {
+        _appVersion = '?.?.?';
+        _buildNumber = '?';
+      });
     }
   }
 
@@ -279,46 +300,62 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
+    // Decide which main content to show
+    Widget mainContent;
     if (!_gameState.isGameStarted) {
-      return NewGameScreen(onNewGame: _startNewGame);
+      mainContent = NewGameScreen(
+          onNewGame: _startNewGame,
+          currentGameState: _gameState,
+          onResetGame: null,
+          appVersion: _appVersion,
+          buildNumber: _buildNumber,
+      );
+    } else {
+      final List<Widget> screens = [
+        ScoringScreen(
+          playerCount: _gameState.playerCount,
+          playerNames: _gameState.playerNames,
+          currentScores: _gameState.currentScores,
+          currentRound: _gameState.currentRound,
+          defaultNegative: _gameState.defaultNegative,
+          onPlayerNameChanged: _updatePlayerName,
+          onScoresSubmitted: _submitRoundScores,
+          onDefaultSignChanged: _updateDefaultSignPreference,
+        ),
+        HistoryScreen(
+          playerCount: _gameState.playerCount,
+          playerNames: _gameState.playerNames,
+          scoreHistory: _gameState.scoreHistory,
+        ),
+        NewGameScreen(
+          onNewGame: _startNewGame,
+          onResetGame: _showResetConfirmationDialog,
+          currentGameState: _gameState,
+          showAppBar: false,
+          appVersion: _appVersion,
+          buildNumber: _buildNumber,
+        ),
+        GraphScreen(
+          playerCount: _gameState.playerCount,
+          playerNames: _gameState.playerNames,
+          scoreHistory: _gameState.scoreHistory,
+          currentScores: _gameState.currentScores,
+        ),
+      ];
+      mainContent = screens[_selectedIndex];
     }
 
-    final List<Widget> screens = [
-      ScoringScreen(
-        playerCount: _gameState.playerCount,
-        playerNames: _gameState.playerNames,
-        currentScores: _gameState.currentScores,
-        currentRound: _gameState.currentRound,
-        defaultNegative: _gameState.defaultNegative,
-        onPlayerNameChanged: _updatePlayerName,
-        onScoresSubmitted: _submitRoundScores,
-        onDefaultSignChanged: _updateDefaultSignPreference,
-      ),
-      HistoryScreen(
-        playerCount: _gameState.playerCount,
-        playerNames: _gameState.playerNames,
-        scoreHistory: _gameState.scoreHistory,
-      ),
-      NewGameScreen(
-        onNewGame: _startNewGame,
-        onResetGame: _showResetConfirmationDialog,
-        currentGameState: _gameState,
-        showAppBar: false,
-      ),
-      GraphScreen(
-        playerCount: _gameState.playerCount,
-        playerNames: _gameState.playerNames,
-        scoreHistory: _gameState.scoreHistory,
-        currentScores: _gameState.currentScores,
-      ),
-    ];
+    // Correct AppBar Title determination (Ensure it handles the case when game isn't started)
+    String appBarTitle = _gameState.isGameStarted
+        ? _tabTitles[_selectedIndex]
+        : AppConstants.appName; // Or a suitable title like 'New Game'
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: Text(_tabTitles[_selectedIndex]),
+        title: Text(appBarTitle), // Use the determined title
       ),
-      body: screens[_selectedIndex],
+      body: mainContent, 
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
@@ -570,77 +607,19 @@ class _ScoringScreenState extends State<ScoringScreen> {
               
               // Main scrollable content (player rows and submit button)
               Expanded(
-                child: Column(
-                  children: [
-                    // Player rows section
-                    Expanded(
-                      child: isLandscape
-                          ? _buildLandscapeLayout()
-                          : _buildPortraitLayout(),
-                    ),
-                    
-                    // Submit button (scrolls with content)
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: _submitScores,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(46), // Slightly smaller
-                      ),
-                      child: const Text('Submit Round Scores'),
-                    ),
-                  ],
-                ),
+                child: isLandscape
+                    ? _buildLandscapeLayout()
+                    : _buildPortraitLayout(),
               ),
               
-              // Fixed score boxes at the bottom (don't scroll with keyboard)
+              // Submit button (scrolls with content)
               const SizedBox(height: 8),
-              Row(
-                key: _scoreBoxKey,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 2.0, left: 4.0),
-                          child: Text(
-                            'Total Score',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        _buildScoreBox(
-                          _calculateTotalScore(),
-                          AppConstants.totalScoreBoxColor,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 2.0, left: 4.0),
-                          child: Text(
-                            'Round Score',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        _buildScoreBox(
-                          _calculateCurrentRoundScore(),
-                          AppConstants.roundScoreBoxColor,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              ElevatedButton(
+                onPressed: _submitScores,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(46), // Slightly smaller
+                ),
+                child: const Text('Submit Round Scores'),
               ),
             ],
           ),
@@ -1572,9 +1551,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
 // New Game Screen
 class NewGameScreen extends StatelessWidget {
   final Function(int) onNewGame;
-  final Function()? onResetGame; // Callback for reset action
-  final GameState? currentGameState; // Pass current state to check if game is started
+  final Function()? onResetGame; 
+  final GameState? currentGameState; 
   final bool showAppBar;
+  final String appVersion; // Add version parameter
+  final String buildNumber; // Add build number parameter
 
   const NewGameScreen({
     super.key,
@@ -1582,6 +1563,8 @@ class NewGameScreen extends StatelessWidget {
     this.onResetGame,
     this.currentGameState,
     this.showAppBar = true,
+    required this.appVersion, // Make required
+    required this.buildNumber, // Make required
   });
 
   @override
@@ -1662,7 +1645,24 @@ class NewGameScreen extends StatelessWidget {
                 );
               }),
             ),
-            const Spacer(), // Pushes content to the top
+            // Use Spacer to push version to bottom only if Reset section is NOT shown
+            if (!canReset) const Spacer(), 
+            // Add extra fixed space only if Reset section IS shown
+            if (canReset) const SizedBox(height: 32.0), // Adjust height as needed
+            // Version Info Display
+            Padding(
+              padding: const EdgeInsets.only(top: 16.0), // Keep existing top padding
+              child: Center( // Center the text
+                child: Text(
+                  'Version: $appVersion ($buildNumber)', 
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[400], // Light gray color
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
           ],
         ),
       ),

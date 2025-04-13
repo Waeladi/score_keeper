@@ -1,6 +1,5 @@
 // ignore_for_file: avoid_print
 import 'dart:math';
-import 'package:flutter/foundation.dart'; // Import for debugPrint
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -15,19 +14,15 @@ void main() {
       // Configure random generator with fixed seed for reproducibility
       final random = Random(42);
       
-      debugPrint('🎮 Starting Trix Test - Game Scores App Simulation');
-      
       // 1. Start a fresh instance of the app
       app.main();
       await tester.pumpAndSettle();
-      debugPrint('🎮 App launched');
       
       // 2. Select 4 players
       final playerButton = find.text('4 Players');
       expect(playerButton, findsOneWidget, reason: 'Could not find 4 Players button');
       await tester.tap(playerButton);
       await tester.pumpAndSettle();
-      debugPrint('🎮 Selected 4 players');
       
       // 3. Give players names - ensuring each field is visible before entering text
       final playerNames = ['Alice', 'Bob', 'Charlie', 'Dana'];
@@ -35,14 +30,10 @@ void main() {
       // Instead of finding all fields at once, find and interact with them one by one
       // This ensures we can scroll to each field as needed
       for (int i = 0; i < 4; i++) {
-        debugPrint('🎮 Entering name for player ${i+1}: ${playerNames[i]}');
-        
         // Find all name fields first to get a count
         final allNameFields = find.byType(TextField).evaluate()
           .where((element) => (element.widget as TextField).decoration?.labelText == 'Player Name')
           .toList();
-        
-        debugPrint('🎮 Found ${allNameFields.length} name fields');
         
         // Make sure we have the expected number of fields
         if (allNameFields.length != 4) {
@@ -69,8 +60,6 @@ void main() {
         await tester.pumpAndSettle(const Duration(milliseconds: 300));
       }
       
-      debugPrint('🎮 Entered all player names: ${playerNames.join(", ")}');
-      
       // 4. Change default scoring to negative
       // First ensure the toggle is visible
       final defaultToggle = find.text('Default');
@@ -80,21 +69,14 @@ void main() {
       expect(defaultToggle, findsOneWidget, reason: 'Could not find default sign toggle');
       await tester.tap(defaultToggle);
       await tester.pumpAndSettle();
-      debugPrint('🎮 Switched default scoring to negative');
       
       // Function to enter scores for a round to avoid code duplication
       Future<void> enterRoundScores(int round, List<int> scores) async {
-        debugPrint('🎮 Entering scores for Round $round');
-        debugPrint('🎮 Generated scores: ${scores.join(", ")}');
-        
         // Get a list of all player cards/rows - these are more stable containers
         final playerCards = find.byType(Card).evaluate().toList();
-        debugPrint('🎮 Found ${playerCards.length} player cards');
         
         // Process each player card (0-indexed)
         for (int i = 0; i < 4; i++) {
-          debugPrint('🎮 Processing player ${i+1} (${playerNames[i]}) with score ${scores[i]}');
-          
           // Find the score field within this player's card
           final playerCard = playerCards[i];
           final scoreFields = find.descendant(
