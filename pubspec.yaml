@@ -99,7 +99,7 @@ flutter:
 
 flutter_icons:
   android: true
-  ios: true
+  # ios: true # Removed as iOS support is being dropped
   image_path: "assets/icon/icon.png"
   adaptive_icon_background: "#FFFFFF" # Background color
   adaptive_icon_foreground: "assets/icon/icon_foreground.png" # We need to create this
