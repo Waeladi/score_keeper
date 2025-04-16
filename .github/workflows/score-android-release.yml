@@ -1,0 +1,35 @@
+name: Score Android Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Upload AAB
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.0'  # or your current Flutter version
+
+    - name: Flutter pub get
+      run: flutter pub get
+
+    - name: Decode keystore
+      run: |
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+
+    - name: Build release AAB
+      run: flutter build appbundle --release
+
+    - name: Upload to GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: build/app/outputs/bundle/release/app-release.aab
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
