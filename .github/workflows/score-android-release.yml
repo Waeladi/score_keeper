@@ -1,8 +1,8 @@
 name: Score Android Release
 
 on:
-  workflow_dispatch:
-
+  workflow_dispatch
+  
 jobs:
   build:
     name: Build & Upload AAB
@@ -29,17 +29,7 @@ jobs:
     - name: Decode keystore
       run: |
         echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
-    
-    - name: DEBUG: Print env var lengths
-      run: |
-        echo "KEYSTORE_PASSWORD length: ${#KEYSTORE_PASSWORD}"
-        echo "KEY_PASSWORD length: ${#KEY_PASSWORD}"
-        echo "KEY_ALIAS length: ${#KEY_ALIAS}"
-      env:
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-
+        
     - name: Build release AAB
       run: flutter build appbundle --release
 
