@@ -43,13 +43,17 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
-        }
+    create("release") {
+        val keystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+        val keyAliasValue = System.getenv("KEY_ALIAS") ?: ""
+        val keyPasswordValue = System.getenv("KEY_PASSWORD") ?: ""
+
+        storeFile = file("upload-keystore.jks")
+        storePassword = keystorePassword
+        keyAlias = keyAliasValue
+        keyPassword = keyPasswordValue
     }
+}
 
     buildTypes {
         getByName("release") {
