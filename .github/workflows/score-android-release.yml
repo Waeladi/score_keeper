@@ -36,7 +36,8 @@ jobs:
           "storePassword=${{ secrets.STORE_PASSWORD }}" \
           "keyPassword=${{ secrets.KEY_PASSWORD }}" \
           "keyAlias=${{ secrets.KEY_ALIAS }}" \
-          "storeFile=app/upload-keystore.jks" > android/key.properties
+          "storeFile=app/upload-keystore.jks" \
+          "storeType=PKCS12" > android/key.properties
         
     - name: Build release AAB
       run: flutter build appbundle --release
