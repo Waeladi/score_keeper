@@ -26,18 +26,25 @@ jobs:
     - name: Flutter pub get
       run: flutter pub get
 
-    - name: Decode keystore
+    - name: Decode Keystore & Create Properties
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        KEYSTORE_PATH_ON_RUNNER: /home/runner/upload-keystore.jks
       run: |
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
-
-    - name: Create key.properties
-      run: |
+        echo "Decoding Keystore to $KEYSTORE_PATH_ON_RUNNER ..."
+        echo $KEYSTORE_BASE64 | base64 --decode > $KEYSTORE_PATH_ON_RUNNER
+        
+        echo "Creating key.properties..."
         printf "%s\n" \
-          "storePassword=${{ secrets.STORE_PASSWORD }}" \
-          "keyPassword=${{ secrets.KEY_PASSWORD }}" \
-          "keyAlias=${{ secrets.KEY_ALIAS }}" \
-          "storeFile=app/upload-keystore.jks" \
-          "storeType=PKCS12" > android/key.properties
+          "storePassword=$STORE_PASSWORD" \
+          "keyPassword=$KEY_PASSWORD" \
+          "keyAlias=$KEY_ALIAS" \
+          "storeFile=$KEYSTORE_PATH_ON_RUNNER" > android/key.properties # Use absolute path
+          
+        echo "Files created successfully."
         
     - name: Build release AAB
       run: flutter build appbundle --release
