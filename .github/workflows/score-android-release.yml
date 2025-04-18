@@ -46,8 +46,13 @@ jobs:
           
         echo "Files created successfully."
         
+    # Calculate the commit count as the build number
+    - name: Set Build Number
+      id: build_number # Give this step an ID to reference its output
+      run: echo "COUNT=$(git rev-list --count HEAD)" >> $GITHUB_OUTPUT
+
     - name: Build release AAB
-      run: flutter build appbundle --release
+      run: flutter build appbundle --release --build-number=${{ steps.build_number.outputs.COUNT }} # Use the calculated count
 
     - name: Upload Release AAB Artifact
       uses: actions/upload-artifact@v4
