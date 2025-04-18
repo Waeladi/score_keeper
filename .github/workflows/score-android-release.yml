@@ -39,13 +39,6 @@ jobs:
           "storeFile=app/upload-keystore.jks" \
           "storeType=PKCS12" > android/key.properties
         
-    # Debugging step - REMOVE AFTER USE
-    - name: Debug: Show key.properties
-      run: |
-        echo "--- Start key.properties --- "
-        cat android/key.properties
-        echo "--- End key.properties --- "
-
     - name: Build release AAB
       run: flutter build appbundle --release
 
