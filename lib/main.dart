@@ -11,31 +11,58 @@ import 'utils/constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'dart:async';
+import 'dart:isolate';
 
-void main() {
-  // WidgetsFlutterBinding.ensureInitialized(); // <-- MOVE THIS LINE
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase FIRST
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // --- Crashlytics Setup START ---
   
-  runZonedGuarded(() async {
-    // Ensure bindings are initialized WITHIN the zone
-    WidgetsFlutterBinding.ensureInitialized(); // <-- TO HERE
-    
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+  // Pass all uncaught "fatal" errors from the Flutter framework to Crashlytics
+  FlutterError.onError = (errorDetails) {
+    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+  };
+  
+  // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    // Return true to indicate that the error has been handled.
+    return true; 
+  };
+
+  // Set up error handling for errors outside of Flutter (Isolates)
+  Isolate.current.addErrorListener(RawReceivePort((pair) async {
+    final List<dynamic> errorAndStacktrace = pair;
+    await FirebaseCrashlytics.instance.recordError(
+      errorAndStacktrace.first,
+      errorAndStacktrace.last,
+      fatal: true,
     );
-    
-    // Initialize Crashlytics
-    await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
-    
-    // Add 2 second delay for native initialization
-    await Future.delayed(const Duration(seconds: 2));
-    
-    runApp(ScoreKeeperApp(
-      analytics: FirebaseAnalytics.instance,
-    ));
-  }, (error, stackTrace) {
-    print('Global error caught: $error');
-    FirebaseCrashlytics.instance.recordError(error, stackTrace);
-  });
+  }).sendPort);
+  
+  // Optional: Enable Crashlytics collection in debug mode (useful for testing)
+  // By default it's enabled for release builds
+  // await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(kDebugMode);
+
+  // --- Crashlytics Setup END ---
+
+  // Load SharedPreferences
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+  runApp(ScoreKeeperApp(
+    analytics: FirebaseAnalytics.instance,
+  ));
 }
 
 class ScoreKeeperApp extends StatelessWidget {
