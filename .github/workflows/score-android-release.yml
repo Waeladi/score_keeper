@@ -49,9 +49,8 @@ jobs:
     - name: Build release AAB
       run: flutter build appbundle --release
 
-    - name: Upload to GitHub Release
-      uses: softprops/action-gh-release@v1
+    - name: Upload Release AAB Artifact
+      uses: actions/upload-artifact@v4
       with:
-        files: build/app/outputs/bundle/release/app-release.aab
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: release-aab # Name of the artifact zip file
+        path: build/app/outputs/bundle/release/*.aab # Path to the AAB file(s)
