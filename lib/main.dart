@@ -11,12 +11,6 @@ import 'utils/constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'dart:async';
 import 'dart:isolate';
 
 void main() async {
@@ -57,8 +51,6 @@ void main() async {
 
   // --- Crashlytics Setup END ---
 
-  // Load SharedPreferences
-  final SharedPreferences prefs = await SharedPreferences.getInstance();
 
   runApp(ScoreKeeperApp(
     analytics: FirebaseAnalytics.instance,
@@ -130,7 +122,7 @@ class _MainScreenState extends State<MainScreen> {
         _selectedIndex = _gameState.isGameStarted ? 0 : 2;
       });
     } catch (e, stackTrace) {
-      print('Critical error loading state: $e\n$stackTrace');
+      debugPrint('Critical error loading state: $e\n$stackTrace');
       // Reset to clean state
       setState(() {
         _gameState = GameState(isGameStarted: false);
@@ -257,7 +249,7 @@ class _MainScreenState extends State<MainScreen> {
       },
     );
     
-    print('Firebase Analytics: Logged navigation to ${tabNames[index]}');
+    debugPrint('Firebase Analytics: Logged navigation to ${tabNames[index]}');
   }
 
   // Method to handle the actual reset logic
@@ -429,7 +421,6 @@ class _ScoringScreenState extends State<ScoringScreen> {
   late List<TextEditingController> _scoreControllers;
   late List<bool> _isNegativeScore;
   final List<String> _errorMessages = List.filled(4, '');
-  final GlobalKey _scoreBoxKey = GlobalKey();
   late bool _defaultNegative;
   late List<FocusNode> _scoreFocusNodes;
 
@@ -541,6 +532,9 @@ class _ScoringScreenState extends State<ScoringScreen> {
       _isNegativeScore = List.generate(4, (index) => _defaultNegative);
     });
 
+    // Reset focus to the first player's score field
+    _scoreFocusNodes[0].requestFocus();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Scores for round ${widget.currentRound} submitted'),
@@ -619,7 +613,7 @@ class _ScoringScreenState extends State<ScoringScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryColor.withOpacity(0.1),
+                  color: AppConstants.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
@@ -655,30 +649,35 @@ class _ScoringScreenState extends State<ScoringScreen> {
     );
   }
 
-  Widget _buildScoreBox(int score, Color backgroundColor) {
+  Widget _buildSummaryScoreCard(String title, int score) {
     return Container(
-      height: 40.0, // Smaller height for score box
-      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+        color: Colors.transparent,
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey,
+            ),
+          ),
+          Text(
+            '$score',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: score < 0 ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
-      ),
-      child: Center(
-        child: Text(
-          '$score',
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-          textAlign: TextAlign.center,
-        ),
       ),
     );
   }
@@ -779,6 +778,21 @@ class _ScoringScreenState extends State<ScoringScreen> {
             },
           ),
         ),
+        // Summary boxes (Round Total and Running Total)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildSummaryScoreCard('Running Total', _calculateTotalScore()),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSummaryScoreCard('Round Total', _calculateCurrentRoundScore()),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -848,6 +862,21 @@ class _ScoringScreenState extends State<ScoringScreen> {
                 onScoreChanged: (_) {}, // No need for this now, we have listeners
               );
             },
+          ),
+        ),
+        // Summary boxes (Round Total and Running Total) for landscape
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildSummaryScoreCard('Running Total', _calculateTotalScore()),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildSummaryScoreCard('Round Total', _calculateCurrentRoundScore()),
+              ),
+            ],
           ),
         ),
       ],
@@ -983,6 +1012,7 @@ class _PlayerScoreRowState extends State<PlayerScoreRow> {
                       focusNode: widget.scoreFocusNode,
                       decoration: InputDecoration(
                         labelText: 'Score',
+                        labelStyle: const TextStyle(fontSize: 10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: const BorderSide(
@@ -1011,6 +1041,7 @@ class _PlayerScoreRowState extends State<PlayerScoreRow> {
                       onChanged: widget.onScoreChanged,
                       textAlign: TextAlign.center,
                       style: TextStyle(
+                        fontSize: 18,
                         color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1025,7 +1056,7 @@ class _PlayerScoreRowState extends State<PlayerScoreRow> {
                     onTap: widget.onToggleSign,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: widget.isNegative ? AppConstants.negativeScoreColor.withOpacity(0.8) : AppConstants.positiveScoreColor.withOpacity(0.8),
+                        color: widget.isNegative ? AppConstants.negativeScoreColor.withValues(alpha: 0.8) : AppConstants.positiveScoreColor.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(12), // Match TextField rounding
                       ),
                       child: Center(
@@ -1183,6 +1214,7 @@ class _PlayerScoreCardState extends State<PlayerScoreCard> {
                         focusNode: widget.scoreFocusNode,
                         decoration: InputDecoration(
                           labelText: 'Score',
+                          labelStyle: const TextStyle(fontSize: 10),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: const BorderSide(
@@ -1211,6 +1243,7 @@ class _PlayerScoreCardState extends State<PlayerScoreCard> {
                         onChanged: widget.onScoreChanged,
                         textAlign: TextAlign.center,
                         style: TextStyle(
+                          fontSize: 18,
                           color: widget.isNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1225,7 +1258,7 @@ class _PlayerScoreCardState extends State<PlayerScoreCard> {
                       onTap: widget.onToggleSign,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: widget.isNegative ? AppConstants.negativeScoreColor.withOpacity(0.8) : AppConstants.positiveScoreColor.withOpacity(0.8),
+                          color: widget.isNegative ? AppConstants.negativeScoreColor.withValues(alpha: 0.8) : AppConstants.positiveScoreColor.withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(12), // Match TextField rounding
                         ),
                         child: Center(

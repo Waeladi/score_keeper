@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GameState {
@@ -67,13 +68,13 @@ class GameState {
           defaultNegative: gameStateMap['defaultNegative'] ?? false,
         );
       } catch (e) {
-        print('Error parsing saved game state: $e');
+        debugPrint('Error parsing saved game state: $e');
         // Clear corrupted data
         await prefs.remove('gameState');
         return GameState(isGameStarted: false);
       }
     } catch (e) {
-      print('Error loading game state: $e');
+      debugPrint('Error loading game state: $e');
       return GameState(isGameStarted: false);
     }
   }
@@ -114,7 +115,7 @@ class GameState {
         defaultNegative: json['defaultNegative'] ?? false,
       );
     } catch (e) {
-      print('Error in fromJson: $e');
+      debugPrint('Error in fromJson: $e');
       // Return a safe default state
       return GameState.newGame(0);
     }
