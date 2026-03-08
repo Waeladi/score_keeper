@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 class AppConstants {
   // App information
   static const String appName = 'Game Scores';
-  static const String appVersion = '1.0.0';
-  
+
+  // Game rules
+  static const int maxPlayers = 4;
+
   // Colors
   static const Color primaryColor = Colors.blue;
   static const Color accentColor = Colors.blueAccent;

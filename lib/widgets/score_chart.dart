@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'utils/constants.dart';
+import '../utils/constants.dart';
 
 class ScoreChart extends StatelessWidget {
   final int playerCount;
@@ -22,10 +22,8 @@ class ScoreChart extends StatelessWidget {
       );
     }
 
-    final orientation = MediaQuery.of(context).orientation;
-    final isLandscape = orientation == Orientation.landscape;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
-    // Calculate cumulative scores for each round
     List<List<int>> cumulativeScores = [];
     List<int> runningTotals = List.filled(playerCount, 0);
 
@@ -36,20 +34,16 @@ class ScoreChart extends StatelessWidget {
       cumulativeScores.add(List.from(runningTotals));
     }
 
-    // Find min and max scores for Y-axis scaling
     int minScore = 0;
     int maxScore = 0;
-
     for (var roundTotal in cumulativeScores) {
       for (int i = 0; i < playerCount; i++) {
         if (roundTotal[i] < minScore) minScore = roundTotal[i];
         if (roundTotal[i] > maxScore) maxScore = roundTotal[i];
       }
     }
-
-    // Add some padding to the min/max for better visualization
-    minScore = minScore - 10;
-    maxScore = maxScore + 10;
+    minScore -= 10;
+    maxScore += 10;
 
     return Padding(
       padding: EdgeInsets.all(isLandscape ? 8.0 : 16.0),
@@ -119,7 +113,7 @@ class ScoreChart extends StatelessWidget {
                 ),
               ),
               isCurved: true,
-              color: _getPlayerColor(playerIndex),
+              color: AppConstants.playerColors[playerIndex % AppConstants.playerColors.length],
               barWidth: isLandscape ? 2 : 3,
               isStrokeCapRound: true,
               dotData: FlDotData(
@@ -140,8 +134,4 @@ class ScoreChart extends StatelessWidget {
       ),
     );
   }
-
-  Color _getPlayerColor(int index) {
-    return AppConstants.playerColors[index % AppConstants.playerColors.length];
-  }
-} 
+}
