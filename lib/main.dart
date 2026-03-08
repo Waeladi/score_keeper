@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'firebase_options.dart';
 import 'app.dart';
 
@@ -15,7 +16,8 @@ export 'screens/new_game_screen.dart' show NewGameScreen;
 export 'screens/graph_screen.dart' show GraphScreen;
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -38,6 +40,8 @@ void main() async {
       fatal: true,
     );
   }).sendPort);
+
+  FlutterNativeSplash.remove();
 
   runApp(ScoreKeeperApp(
     analytics: FirebaseAnalytics.instance,
