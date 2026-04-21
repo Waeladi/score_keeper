@@ -58,7 +58,12 @@ class ScoreChart extends StatelessWidget {
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
-                  final label = value.toInt() == 0 ? 'Start' : 'R${value.toInt()}';
+                  // Only show labels for integer positions (actual data points)
+                  if ((value - value.toInt()).abs() > 0.01) {
+                    return const SizedBox.shrink();
+                  }
+                  final index = value.toInt();
+                  final label = index == 0 ? 'Start' : 'R$index';
                   return Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
