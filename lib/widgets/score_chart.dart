@@ -27,6 +27,9 @@ class ScoreChart extends StatelessWidget {
     List<List<int>> cumulativeScores = [];
     List<int> runningTotals = List.filled(playerCount, 0);
 
+    // Prepend starting point: all players at 0 before round 1
+    cumulativeScores.add(List.filled(playerCount, 0));
+
     for (var roundScores in scoreHistory) {
       for (int i = 0; i < playerCount; i++) {
         runningTotals[i] += roundScores[i];
@@ -55,10 +58,11 @@ class ScoreChart extends StatelessWidget {
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
+                  final label = value.toInt() == 0 ? 'Start' : 'R${value.toInt()}';
                   return Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
-                      'R${value.toInt() + 1}',
+                      label,
                       style: TextStyle(
                         color: Colors.black,
                         fontWeight: FontWeight.bold,
