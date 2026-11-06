@@ -13,7 +13,7 @@ A Flutter card game score-tracking app for Android (phones and tablets). Publish
 - **Analytics**: Firebase Analytics, Firebase Crashlytics
 - **Charting**: fl_chart
 - **Build**: Gradle Kotlin DSL (Kotlin 2.3), GitHub Actions CI/CD
-- **Release**: `score-android-deploy.yml` (manual dispatch) builds, signs and uploads to Play; pick track/status/rollout per run. Release notes live in `distribution/whatsnew/whatsnew-en-US`. Build number = git commit count.
+- **Release**: `score-android-deploy.yml` (manual dispatch) builds, signs and uploads to Play; pick track/status/rollout per run. Release notes live in `distribution/whatsnew/whatsnew-en-US`. Build number = workflow run number + repo variable `BUILD_NUMBER_OFFSET`.
 
 ## Project Structure
 ```

@@ -26,8 +26,6 @@ jobs:
     steps:
     - name: Checkout repo
       uses: actions/checkout@v7
-      with:
-        fetch-depth: 0 # full history: build number = commit count
 
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
@@ -58,9 +56,18 @@ jobs:
           "keyAlias=$KEY_ALIAS" \
           "storeFile=$KEYSTORE_PATH_ON_RUNNER" > android/key.properties
 
+    # Build number = this workflow's run number + BUILD_NUMBER_OFFSET (repo
+    # variable). Goes up by one every run. To jump to N on the next run, set
+    # the offset to N minus the next run number.
     - name: Set Build Number
       id: build_number
-      run: echo "COUNT=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+      env:
+        OFFSET: ${{ vars.BUILD_NUMBER_OFFSET }}
+      run: |
+        if [ -z "$OFFSET" ]; then echo "::error::Repo variable BUILD_NUMBER_OFFSET is not set"; exit 1; fi
+        COUNT=$(( ${{ github.run_number }} + OFFSET ))
+        echo "Build number: $COUNT"
+        echo "COUNT=$COUNT" >> "$GITHUB_OUTPUT"
 
     - name: Build release AAB
       run: flutter build appbundle --release --build-number=${{ steps.build_number.outputs.COUNT }}
