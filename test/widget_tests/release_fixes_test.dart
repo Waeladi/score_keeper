@@ -59,8 +59,11 @@ void main() {
 
     await tester.pumpWidget(const ScoreKeeperApp(analytics: null));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('2 Players'));
+    await tester.tap(find.bySemanticsLabel('2 Players'));
     await tester.pumpAndSettle();
+
+    // Submit bar is hidden until a score is entered.
+    expect(find.text('SUBMIT'), findsNothing);
 
     // Last '0' on screen is Player 2's score-entry pill; enter 42 there.
     await tester.tap(find.text('0').last);
@@ -77,5 +80,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('42'), findsOneWidget);
+    expect(find.text('SUBMIT'), findsOneWidget);
+
+    // After submitting, entries clear and the bar hides again.
+    await tester.tap(find.text('SUBMIT'));
+    await tester.pumpAndSettle();
+    expect(find.text('SUBMIT'), findsNothing);
   });
 }

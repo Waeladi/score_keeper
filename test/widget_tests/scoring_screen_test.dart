@@ -8,6 +8,8 @@ Widget _buildScoringScreen({
   List<int> currentScores = const [0, 0],
   int currentRound = 1,
   bool defaultNegative = false,
+  bool lowScoreWins = false,
+  Function(bool)? onLowScoreWinsChanged,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -17,9 +19,11 @@ Widget _buildScoringScreen({
         currentScores: currentScores,
         currentRound: currentRound,
         defaultNegative: defaultNegative,
+        lowScoreWins: lowScoreWins,
         onPlayerNameChanged: (_, __) {},
         onScoresSubmitted: (_) {},
         onDefaultSignChanged: (_) {},
+        onLowScoreWinsChanged: onLowScoreWinsChanged ?? (_) {},
       ),
     ),
   );
@@ -66,5 +70,41 @@ void main() {
     expect(find.text('Player 2'), findsWidgets);
     // LEADER label
     expect(find.text('LEADER'), findsOneWidget);
+  });
+
+  testWidgets('Low-score-wins picks the lowest total as leader', (tester) async {
+    await tester.pumpWidget(_buildScoringScreen(
+      playerNames: const ['Alice', 'Bob'],
+      currentScores: const [10, -5],
+      lowScoreWins: true,
+    ));
+    expect(find.text('Bob'), findsNWidgets(2)); // leader card + player row
+    expect(find.text('LOW'), findsOneWidget);
+  });
+
+  testWidgets('Tie shows both names, 3+ shows Tied', (tester) async {
+    await tester.pumpWidget(_buildScoringScreen(
+      playerNames: const ['Alice', 'Bob'],
+      currentScores: const [7, 7],
+    ));
+    expect(find.text('Alice & Bob'), findsOneWidget);
+
+    await tester.pumpWidget(_buildScoringScreen(
+      playerCount: 3,
+      playerNames: const ['Alice', 'Bob', 'Cy'],
+      currentScores: const [0, 0, 0],
+    ));
+    expect(find.text('Tied'), findsOneWidget);
+  });
+
+  testWidgets('Win-rule chip reports the flipped rule', (tester) async {
+    bool? reported;
+    await tester.pumpWidget(_buildScoringScreen(
+      onLowScoreWinsChanged: (v) => reported = v,
+    ));
+    await tester.tap(find.text('HIGH'));
+    await tester.pump();
+    expect(reported, true);
+    expect(find.text('Lowest score now leads'), findsOneWidget);
   });
 }

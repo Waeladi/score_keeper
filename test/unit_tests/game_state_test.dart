@@ -55,5 +55,16 @@ void main() {
       expect(gameState.playerNames[0], "Alice");
       expect(gameState.playerNames[1], "Bob");
     });
+
+    test('lowScoreWins round-trips through JSON', () {
+      final gameState = GameState.newGame(2, lowScoreWins: true);
+      final restored = GameState.fromJson(gameState.toJson());
+      expect(restored.lowScoreWins, true);
+    });
+
+    test('saved games without lowScoreWins default to highest wins', () {
+      final json = GameState.newGame(2).toJson()..remove('lowScoreWins');
+      expect(GameState.fromJson(json).lowScoreWins, false);
+    });
   });
-} 
+}

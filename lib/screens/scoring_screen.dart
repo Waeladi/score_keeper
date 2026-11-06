@@ -9,9 +9,11 @@ class ScoringScreen extends StatefulWidget {
   final List<int> currentScores;
   final int currentRound;
   final bool defaultNegative;
+  final bool lowScoreWins;
   final Function(int, String) onPlayerNameChanged;
   final Function(List<int>) onScoresSubmitted;
   final Function(bool) onDefaultSignChanged;
+  final Function(bool) onLowScoreWinsChanged;
 
   const ScoringScreen({
     super.key,
@@ -20,9 +22,11 @@ class ScoringScreen extends StatefulWidget {
     required this.currentScores,
     required this.currentRound,
     required this.defaultNegative,
+    required this.lowScoreWins,
     required this.onPlayerNameChanged,
     required this.onScoresSubmitted,
     required this.onDefaultSignChanged,
+    required this.onLowScoreWinsChanged,
   });
 
   @override
@@ -64,13 +68,25 @@ class _ScoringScreenState extends State<ScoringScreen> {
     for (var controller in _scoreControllers) {
       controller.clear();
     }
-    _isNegativeScore = List.generate(AppConstants.maxPlayers, (index) => _defaultNegative);
+    _isNegativeScore = List.generate(
+      AppConstants.maxPlayers,
+      (index) => _defaultNegative,
+    );
   }
 
   void _initializeControllers() {
-    _scoreControllers = List.generate(AppConstants.maxPlayers, (index) => TextEditingController());
-    _isNegativeScore = List.generate(AppConstants.maxPlayers, (index) => _defaultNegative);
-    _scoreFocusNodes = List.generate(AppConstants.maxPlayers, (index) => FocusNode());
+    _scoreControllers = List.generate(
+      AppConstants.maxPlayers,
+      (index) => TextEditingController(),
+    );
+    _isNegativeScore = List.generate(
+      AppConstants.maxPlayers,
+      (index) => _defaultNegative,
+    );
+    _scoreFocusNodes = List.generate(
+      AppConstants.maxPlayers,
+      (index) => FocusNode(),
+    );
 
     for (var controller in _scoreControllers) {
       controller.addListener(_onScoreChanged);
@@ -105,7 +121,9 @@ class _ScoringScreenState extends State<ScoringScreen> {
         try {
           int score = int.parse(_scoreControllers[i].text);
           if (score < 0) {
-            errorMessages.add('${widget.playerNames[i]}: Use +/- toggle for negative scores');
+            errorMessages.add(
+              '${widget.playerNames[i]}: Use +/- toggle for negative scores',
+            );
           }
         } catch (e) {
           errorMessages.add('${widget.playerNames[i]}: Invalid number');
@@ -116,9 +134,11 @@ class _ScoringScreenState extends State<ScoringScreen> {
     if (errorMessages.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(errorMessages.length > 1
-              ? 'Please fix invalid score entries'
-              : errorMessages.first),
+          content: Text(
+            errorMessages.length > 1
+                ? 'Please fix invalid score entries'
+                : errorMessages.first,
+          ),
           backgroundColor: AppConstants.error,
           duration: const Duration(seconds: 3),
         ),
@@ -148,7 +168,10 @@ class _ScoringScreenState extends State<ScoringScreen> {
 
     widget.onScoresSubmitted(roundScores);
     setState(() {
-      _isNegativeScore = List.generate(AppConstants.maxPlayers, (index) => _defaultNegative);
+      _isNegativeScore = List.generate(
+        AppConstants.maxPlayers,
+        (index) => _defaultNegative,
+      );
     });
 
     _scoreFocusNodes[0].requestFocus();
@@ -180,15 +203,37 @@ class _ScoringScreenState extends State<ScoringScreen> {
     });
   }
 
-  // Find leader index and score
-  int _getLeaderIndex() {
-    int leaderIdx = 0;
-    for (int i = 1; i < widget.playerCount; i++) {
-      if (widget.currentScores[i] > widget.currentScores[leaderIdx]) {
-        leaderIdx = i;
-      }
-    }
-    return leaderIdx;
+  // Indexes of every player holding the best total (more than one on a tie).
+  List<int> _getLeaderIndexes() {
+    final scores = widget.currentScores.take(widget.playerCount);
+    final best =
+        widget.lowScoreWins
+            ? scores.reduce((a, b) => a < b ? a : b)
+            : scores.reduce((a, b) => a > b ? a : b);
+    return [
+      for (int i = 0; i < widget.playerCount; i++)
+        if (widget.currentScores[i] == best) i,
+    ];
+  }
+
+  String _displayName(int index) =>
+      widget.playerNames[index].isNotEmpty
+          ? widget.playerNames[index]
+          : 'Player ${index + 1}';
+
+  void _toggleLowScoreWins() {
+    final lowScoreWins = !widget.lowScoreWins;
+    widget.onLowScoreWinsChanged(lowScoreWins);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            lowScoreWins ? 'Lowest score now leads' : 'Highest score now leads',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   int _calculateCurrentRoundTotal() {
@@ -207,14 +252,20 @@ class _ScoringScreenState extends State<ScoringScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final hasEntries = _scoreControllers
+        .take(widget.playerCount)
+        .any((controller) => controller.text.isNotEmpty);
 
     return SafeArea(
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.translucent,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppConstants.outerMargin),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.outerMargin,
+          ),
           child: Column(
             children: [
               const SizedBox(height: 12),
@@ -226,11 +277,16 @@ class _ScoringScreenState extends State<ScoringScreen> {
               const SizedBox(height: 8),
               // Player list
               Expanded(
-                child: isLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
+                child:
+                    isLandscape
+                        ? _buildLandscapeLayout()
+                        : _buildPortraitLayout(),
               ),
-              const SizedBox(height: 8),
-              // Submit CTA
-              _buildSubmitSection(),
+              // Submit CTA: only once at least one score has been entered
+              if (hasEntries) ...[
+                const SizedBox(height: 8),
+                _buildSubmitSection(),
+              ],
               const SizedBox(height: 12),
             ],
           ),
@@ -240,53 +296,154 @@ class _ScoringScreenState extends State<ScoringScreen> {
   }
 
   Widget _buildDashboardCards() {
-    final leaderIdx = _getLeaderIndex();
-    final leaderName = widget.playerNames[leaderIdx].isNotEmpty
-        ? widget.playerNames[leaderIdx]
-        : 'Player ${leaderIdx + 1}';
-    final leaderScore = widget.currentScores[leaderIdx];
+    final leaders = _getLeaderIndexes();
+    final leaderName = switch (leaders.length) {
+      1 => _displayName(leaders[0]),
+      2 => '${_displayName(leaders[0])} & ${_displayName(leaders[1])}',
+      _ => 'Tied',
+    };
+    final leaderScore = widget.currentScores[leaders.first];
     final roundTotal = _calculateCurrentRoundTotal();
 
-    return Row(
-      children: [
-        // Leader card
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppConstants.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-              border: const Border(
-                bottom: BorderSide(color: AppConstants.primary, width: 4),
+    // IntrinsicHeight + stretch keeps both cards the same height.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Leader card
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppConstants.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+                border: const Border(
+                  bottom: BorderSide(color: AppConstants.primary, width: 4),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'LEADER',
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                            color: AppConstants.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      _buildWinRuleChip(),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    leaderName,
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppConstants.onSurface,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '$leaderScore',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: AppConstants.primary,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          const SizedBox(width: 12),
+          // Round total card
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppConstants.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ROUND TOTAL',
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
+                      color: AppConstants.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Round ${widget.currentRound}',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppConstants.onSurface,
+                    ),
+                  ),
+                  Text(
+                    roundTotal >= 0 ? '+$roundTotal' : '$roundTotal',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color:
+                          roundTotal < 0
+                              ? AppConstants.error
+                              : AppConstants.secondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWinRuleChip() {
+    final low = widget.lowScoreWins;
+    return Semantics(
+      button: true,
+      label:
+          low
+              ? 'Lowest score wins. Tap to switch to highest.'
+              : 'Highest score wins. Tap to switch to lowest.',
+      excludeSemantics: true,
+      child: Material(
+        color: AppConstants.surfaceContainerLow,
+        shape: const StadiumBorder(),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: _toggleLowScoreWins,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
+                Icon(
+                  low ? Icons.arrow_downward : Icons.arrow_upward,
+                  size: 12,
+                  color: AppConstants.primary,
+                ),
+                const SizedBox(width: 2),
                 Text(
-                  'LEADER',
+                  low ? 'LOW' : 'HIGH',
                   style: GoogleFonts.manrope(
                     fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2,
-                    color: AppConstants.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  leaderName,
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppConstants.onSurface,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  '$leaderScore',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 32,
                     fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
                     color: AppConstants.primary,
                   ),
                 ),
@@ -294,51 +451,7 @@ class _ScoringScreenState extends State<ScoringScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 12),
-        // Round total card
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppConstants.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(AppConstants.cardRadius),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ROUND TOTAL',
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2,
-                    color: AppConstants.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Round ${widget.currentRound}',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppConstants.onSurface,
-                  ),
-                ),
-                Text(
-                  roundTotal >= 0 ? '+$roundTotal' : '$roundTotal',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    color: roundTotal < 0
-                        ? AppConstants.error
-                        : AppConstants.secondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -366,7 +479,9 @@ class _ScoringScreenState extends State<ScoringScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  _defaultNegative ? Icons.remove_circle_outline : Icons.add_circle_outline,
+                  _defaultNegative
+                      ? Icons.remove_circle_outline
+                      : Icons.add_circle_outline,
                   size: 14,
                   color: AppConstants.onBackground,
                 ),
@@ -436,9 +551,7 @@ class _ScoringScreenState extends State<ScoringScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -496,7 +609,11 @@ class _ScoringScreenState extends State<ScoringScreen> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+                  const Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ],
               ),
             ),

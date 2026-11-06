@@ -62,18 +62,15 @@ class AppConstants {
   // Legacy aliases for backward compat
   static const Color primaryColor = primary;
   static const Color accentColor = primaryContainer;
-  static const Color negativeScoreColor = error;
-  static const Color positiveScoreColor = primary;
-  static const Color highlightColor = primaryContainer;
   static const Color totalScoreBoxColor = surfaceContainerLow;
   static const Color roundScoreBoxColor = surfaceContainerLowest;
 
-  // Player colors for graph
+  // Per-player colors, shared by avatars and graph lines
   static const List<Color> playerColors = [
-    Color(0xFF266829), // primary green
-    Color(0xFF594ABA), // secondary purple
-    Color(0xFF00656F), // tertiary teal
-    Color(0xFFB02500), // error red/orange
+    primary,
+    secondary,
+    tertiary,
+    error,
   ];
 
   // Animation durations

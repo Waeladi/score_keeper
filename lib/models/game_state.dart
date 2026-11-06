@@ -11,6 +11,8 @@ class GameState {
   List<List<int>> scoreHistory;
   int currentRound;
   bool defaultNegative;
+  // false: highest total leads (default). true: lowest total leads (e.g. Hearts).
+  bool lowScoreWins;
 
   GameState({
     this.isGameStarted = false,
@@ -20,12 +22,13 @@ class GameState {
     List<List<int>>? scoreHistory,
     this.currentRound = 1,
     this.defaultNegative = false,
+    this.lowScoreWins = false,
   }) :
     playerNames = playerNames ?? List.generate(AppConstants.maxPlayers, (index) => "Player ${index + 1}"),
     currentScores = currentScores ?? List.filled(AppConstants.maxPlayers, 0),
     scoreHistory = scoreHistory ?? [];
 
-  factory GameState.newGame(int playerCount) {
+  factory GameState.newGame(int playerCount, {bool lowScoreWins = false}) {
     return GameState(
       isGameStarted: true,
       playerCount: playerCount,
@@ -34,6 +37,7 @@ class GameState {
       scoreHistory: [],
       currentRound: 1,
       defaultNegative: false,
+      lowScoreWins: lowScoreWins,
     );
   }
 
@@ -59,6 +63,7 @@ class GameState {
             : [],
         currentRound: json['currentRound'] ?? 1,
         defaultNegative: json['defaultNegative'] ?? false,
+        lowScoreWins: json['lowScoreWins'] ?? false,
       );
     } catch (e) {
       debugPrint('Error in fromJson: $e');
@@ -130,5 +135,6 @@ class GameState {
     'scoreHistory': scoreHistory,
     'currentRound': currentRound,
     'defaultNegative': defaultNegative,
+    'lowScoreWins': lowScoreWins,
   };
 }

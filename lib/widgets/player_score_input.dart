@@ -55,16 +55,9 @@ class _PlayerScoreInputState extends State<PlayerScoreInput> {
     super.dispose();
   }
 
-  // Player avatar circle with first initial
-  static const List<Color> _avatarColors = [
-    AppConstants.primary,
-    AppConstants.secondary,
-    AppConstants.tertiary,
-    AppConstants.primaryDim,
-  ];
-
   Widget _buildAvatar() {
-    final color = _avatarColors[widget.playerIndex % _avatarColors.length];
+    final color = AppConstants.playerColors[
+        widget.playerIndex % AppConstants.playerColors.length];
     final initial = widget.playerName.isNotEmpty
         ? widget.playerName[0].toUpperCase()
         : '${widget.playerIndex + 1}';

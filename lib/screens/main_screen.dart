@@ -80,15 +80,15 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  void _startNewGame(int playerCount) {
+  void _startNewGame(int playerCount, bool lowScoreWins) {
     if (_gameState.isGameStarted && _gameState.scoreHistory.isNotEmpty) {
-      _showNewGameConfirmationDialog(playerCount);
+      _showNewGameConfirmationDialog(playerCount, lowScoreWins);
     } else {
-      _confirmStartNewGame(playerCount);
+      _confirmStartNewGame(playerCount, lowScoreWins);
     }
   }
 
-  void _showNewGameConfirmationDialog(int playerCount) {
+  void _showNewGameConfirmationDialog(int playerCount, bool lowScoreWins) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -104,7 +104,7 @@ class _MainScreenState extends State<MainScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _confirmStartNewGame(playerCount);
+              _confirmStartNewGame(playerCount, lowScoreWins);
             },
             child: const Text('Start New Game'),
           ),
@@ -113,10 +113,10 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  void _confirmStartNewGame(int playerCount) {
+  void _confirmStartNewGame(int playerCount, bool lowScoreWins) {
     _logNavEvent(_homeTabIndex);
     setState(() {
-      _gameState = GameState.newGame(playerCount);
+      _gameState = GameState.newGame(playerCount, lowScoreWins: lowScoreWins);
       _selectedIndex = _homeTabIndex;
     });
     _gameState.save();
@@ -139,6 +139,13 @@ class _MainScreenState extends State<MainScreen> {
   void _updateDefaultSignPreference(bool isNegative) {
     setState(() {
       _gameState.setDefaultNegative(isNegative);
+    });
+    _gameState.save();
+  }
+
+  void _updateLowScoreWins(bool lowScoreWins) {
+    setState(() {
+      _gameState.lowScoreWins = lowScoreWins;
     });
     _gameState.save();
   }
@@ -176,7 +183,6 @@ class _MainScreenState extends State<MainScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Game Reset! Scores and history cleared.'),
-        backgroundColor: Colors.orange,
       ),
     );
   }
@@ -186,7 +192,6 @@ class _MainScreenState extends State<MainScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No game progress to reset.'),
-          backgroundColor: Colors.blueGrey,
         ),
       );
       return;
@@ -205,7 +210,7 @@ class _MainScreenState extends State<MainScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppConstants.error),
             onPressed: () {
               Navigator.of(context).pop();
               _resetCurrentGame();
@@ -257,9 +262,11 @@ class _MainScreenState extends State<MainScreen> {
           currentScores: _gameState.currentScores,
           currentRound: _gameState.currentRound,
           defaultNegative: _gameState.defaultNegative,
+          lowScoreWins: _gameState.lowScoreWins,
           onPlayerNameChanged: _updatePlayerName,
           onScoresSubmitted: _submitRoundScores,
           onDefaultSignChanged: _updateDefaultSignPreference,
+          onLowScoreWinsChanged: _updateLowScoreWins,
         ),
         HistoryScreen(
           playerCount: _gameState.playerCount,
