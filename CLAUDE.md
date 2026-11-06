@@ -5,14 +5,15 @@ A Flutter card game score-tracking app for Android (phones and tablets). Publish
 - **Package**: `com.waelapps.score_keeper`
 - **Display Name**: "Game Scores"
 - **Platform**: Android only (phone + tablet)
-- **Min SDK**: Flutter 3.7.0, Dart 3.7.0, Java 17
+- **Toolchain**: Flutter 3.38.4, Dart 3.10, Java 17 (JDK 17 required; newer JDKs break Gradle), minSdk 24, targetSdk 36
 
 ## Tech Stack
 - **Framework**: Flutter with Material 3
 - **State Persistence**: SharedPreferences (JSON serialization)
 - **Analytics**: Firebase Analytics, Firebase Crashlytics
 - **Charting**: fl_chart
-- **Build**: Gradle Kotlin DSL, GitHub Actions CI/CD
+- **Build**: Gradle Kotlin DSL (Kotlin 2.3), GitHub Actions CI/CD
+- **Release**: `score-android-deploy.yml` (manual dispatch) builds, signs and uploads to Play; pick track/status/rollout per run. Release notes live in `distribution/whatsnew/whatsnew-en-US`. Build number = git commit count.
 
 ## Project Structure
 ```
@@ -28,6 +29,7 @@ lib/
 │   └── graph_screen.dart  # Score progression chart + legend
 ├── widgets/
 │   ├── player_score_input.dart # Unified player score input (portrait + landscape)
+│   ├── number_pad.dart    # Bottom-sheet number pad for score entry
 │   └── score_chart.dart   # Line chart widget using fl_chart
 ├── models/
 │   └── game_state.dart    # Game state model with JSON persistence
