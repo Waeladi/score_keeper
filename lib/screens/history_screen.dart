@@ -174,7 +174,7 @@ class HistoryScreen extends StatelessWidget {
                               style: GoogleFonts.spaceGrotesk(
                                 fontSize: 15,
                                 color: scoreHistory[index][i] < 0
-                                    ? AppConstants.error
+                                    ? AppConstants.secondary
                                     : AppConstants.primary,
                                 fontWeight: isLatestRound ? FontWeight.w700 : FontWeight.w500,
                               ),

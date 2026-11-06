@@ -399,8 +399,8 @@ class _ScoringScreenState extends State<ScoringScreen> {
                       fontWeight: FontWeight.w800,
                       color:
                           roundTotal < 0
-                              ? AppConstants.error
-                              : AppConstants.secondary,
+                              ? AppConstants.secondary
+                              : AppConstants.primary,
                     ),
                   ),
                 ],

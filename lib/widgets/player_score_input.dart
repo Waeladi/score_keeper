@@ -150,7 +150,7 @@ class _PlayerScoreInputState extends State<PlayerScoreInput> {
         fontSize: 22,
         fontWeight: FontWeight.w900,
         color: widget.currentScore < 0
-            ? AppConstants.error
+            ? AppConstants.secondary
             : AppConstants.primary,
       ),
     );

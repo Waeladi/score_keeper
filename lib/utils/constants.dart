@@ -14,11 +14,9 @@ class AppConstants {
   static const Color onPrimary = Color(0xFFD1FFC8);
   static const Color primaryContainer = Color(0xFFB2FAA9);
   static const Color onPrimaryContainer = Color(0xFF1F6223);
-  static const Color primaryFixedDim = Color(0xFFA4EB9C);
 
   // Secondary (Deep Amethyst)
   static const Color secondary = Color(0xFF594ABA);
-  static const Color secondaryDim = Color(0xFF4D3DAE);
   static const Color onSecondary = Color(0xFFF5F0FF);
   static const Color secondaryContainer = Color(0xFFD3CCFF);
   static const Color onSecondaryContainer = Color(0xFF4433A5);
@@ -37,7 +35,6 @@ class AppConstants {
   static const Color surfaceContainerHigh = Color(0xFFB5F0C2);
   static const Color surfaceContainerHighest = Color(0xFFACECBB);
   static const Color surfaceTint = Color(0xFF266829);
-  static const Color surfaceVariant = Color(0xFFACECBB);
 
   // On-surface
   static const Color onSurface = Color(0xFF0C361D);
@@ -59,12 +56,6 @@ class AppConstants {
   static const Color background = Color(0xFF5DA059);
   static const Color onBackground = Color(0xFFFFFFFF);
 
-  // Legacy aliases for backward compat
-  static const Color primaryColor = primary;
-  static const Color accentColor = primaryContainer;
-  static const Color totalScoreBoxColor = surfaceContainerLow;
-  static const Color roundScoreBoxColor = surfaceContainerLowest;
-
   // Per-player colors, shared by avatars and graph lines
   static const List<Color> playerColors = [
     primary,
@@ -73,19 +64,11 @@ class AppConstants {
     error,
   ];
 
-  // Animation durations
-  static const Duration shortAnimationDuration = Duration(milliseconds: 200);
-  static const Duration mediumAnimationDuration = Duration(milliseconds: 400);
-
   // Validation
   static const int maxScoreValue = 999999;
-  static const int minScoreValue = -99999;
 
   // Layout
-  static const double defaultPadding = 16.0;
   static const double outerMargin = 18.0;  // ~2.25rem from design
-  static const double playerRowHeight = 60.0;
-  static const double scoreBoxHeight = 80.0;
   static const double cardRadius = 12.0;   // xl from design
   static const double chipRadius = 9999.0; // full/pill
 } 
