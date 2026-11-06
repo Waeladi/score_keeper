@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       track:
-        description: 'Play track'
+        description: 'Play track (build-only = build and save the AAB, no Play upload)'
         type: choice
-        options: [internal, alpha, beta, production]
+        options: [internal, alpha, beta, production, build-only]
         default: internal
       status:
         description: 'Release status (completed = goes live; inProgress = staged rollout; draft = review in Play Console first)'
@@ -72,6 +72,7 @@ jobs:
         path: build/app/outputs/bundle/release/*.aab
 
     - name: Upload AAB to Google Play
+      if: inputs.track != 'build-only'
       uses: r0adkll/upload-google-play@v1
       with:
         serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_JSON_KEY }}
