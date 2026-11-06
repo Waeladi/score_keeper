@@ -20,7 +20,7 @@ Widget _buildScoringScreen({
         currentRound: currentRound,
         defaultNegative: defaultNegative,
         lowScoreWins: lowScoreWins,
-        onPlayerNameChanged: (_, __) {},
+        onPlayerNameChanged: (_, _) {},
         onScoresSubmitted: (_) {},
         onDefaultSignChanged: (_) {},
         onLowScoreWinsChanged: onLowScoreWinsChanged ?? (_) {},
