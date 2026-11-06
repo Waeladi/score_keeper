@@ -7,56 +7,88 @@ class AppConstants {
   // Game rules
   static const int maxPlayers = 4;
 
-  // Colors
-  static const Color primaryColor = Colors.blue;
-  static const Color accentColor = Colors.blueAccent;
-  static const Color negativeScoreColor = Colors.red;
-  static const Color positiveScoreColor = Colors.green;
-  static const Color highlightColor = Color(0xFFE0F7E0); // Light green for highlighting
-  
-  // Score box colors
-  static const Color totalScoreBoxColor = Color(0xFFE3F2FD); // Light blue
-  static const Color roundScoreBoxColor = Color(0xFFE8F5E9); // Light green
-  
+  // === Vibrant Forest Palette ===
+  // Primary greens
+  static const Color primary = Color(0xFF266829);
+  static const Color primaryDim = Color(0xFF185C1E);
+  static const Color onPrimary = Color(0xFFD1FFC8);
+  static const Color primaryContainer = Color(0xFFB2FAA9);
+  static const Color onPrimaryContainer = Color(0xFF1F6223);
+  static const Color primaryFixedDim = Color(0xFFA4EB9C);
+
+  // Secondary (Deep Amethyst)
+  static const Color secondary = Color(0xFF594ABA);
+  static const Color secondaryDim = Color(0xFF4D3DAE);
+  static const Color onSecondary = Color(0xFFF5F0FF);
+  static const Color secondaryContainer = Color(0xFFD3CCFF);
+  static const Color onSecondaryContainer = Color(0xFF4433A5);
+
+  // Tertiary (Teal accents)
+  static const Color tertiary = Color(0xFF00656F);
+  static const Color tertiaryContainer = Color(0xFF10EAFE);
+
+  // Surfaces
+  static const Color surface = Color(0xFFDEFFE2);
+  static const Color surfaceBright = Color(0xFFDEFFE2);
+  static const Color surfaceDim = Color(0xFFA0E4B1);
+  static const Color surfaceContainerLowest = Color(0xFFFFFFFF);
+  static const Color surfaceContainerLow = Color(0xFFCAFDD4);
+  static const Color surfaceContainer = Color(0xFFBEF5C9);
+  static const Color surfaceContainerHigh = Color(0xFFB5F0C2);
+  static const Color surfaceContainerHighest = Color(0xFFACECBB);
+  static const Color surfaceTint = Color(0xFF266829);
+  static const Color surfaceVariant = Color(0xFFACECBB);
+
+  // On-surface
+  static const Color onSurface = Color(0xFF0C361D);
+  static const Color onSurfaceVariant = Color(0xFF3B6447);
+  static const Color inverseSurface = Color(0xFF001205);
+  static const Color inverseOnSurface = Color(0xFF7CA785);
+  static const Color inversePrimary = Color(0xFFB2FAA9);
+
+  // Outline
+  static const Color outline = Color(0xFF568061);
+  static const Color outlineVariant = Color(0xFF8CB795);
+
+  // Error
+  static const Color error = Color(0xFFB02500);
+  static const Color errorContainer = Color(0xFFF95630);
+  static const Color onError = Color(0xFFFFEFEC);
+
+  // Background (the outer green)
+  static const Color background = Color(0xFF5DA059);
+  static const Color onBackground = Color(0xFFFFFFFF);
+
+  // Legacy aliases for backward compat
+  static const Color primaryColor = primary;
+  static const Color accentColor = primaryContainer;
+  static const Color negativeScoreColor = error;
+  static const Color positiveScoreColor = primary;
+  static const Color highlightColor = primaryContainer;
+  static const Color totalScoreBoxColor = surfaceContainerLow;
+  static const Color roundScoreBoxColor = surfaceContainerLowest;
+
   // Player colors for graph
   static const List<Color> playerColors = [
-    Colors.blue,
-    Colors.red,
-    Colors.green,
-    Colors.orange,
+    Color(0xFF266829), // primary green
+    Color(0xFF594ABA), // secondary purple
+    Color(0xFF00656F), // tertiary teal
+    Color(0xFFB02500), // error red/orange
   ];
-  
-  // Text styles
-  static const TextStyle headingStyle = TextStyle(
-    fontSize: 24,
-    fontWeight: FontWeight.bold,
-  );
-  
-  static const TextStyle subheadingStyle = TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.w500,
-  );
-  
-  static const TextStyle scoreBoxTitleStyle = TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.bold,
-  );
-  
-  static const TextStyle scoreBoxValueStyle = TextStyle(
-    fontSize: 24,
-    fontWeight: FontWeight.bold,
-  );
-  
+
   // Animation durations
   static const Duration shortAnimationDuration = Duration(milliseconds: 200);
   static const Duration mediumAnimationDuration = Duration(milliseconds: 400);
-  
+
   // Validation
   static const int maxScoreValue = 999999;
   static const int minScoreValue = -99999;
-  
+
   // Layout
   static const double defaultPadding = 16.0;
+  static const double outerMargin = 18.0;  // ~2.25rem from design
   static const double playerRowHeight = 60.0;
   static const double scoreBoxHeight = 80.0;
+  static const double cardRadius = 12.0;   // xl from design
+  static const double chipRadius = 9999.0; // full/pill
 } 

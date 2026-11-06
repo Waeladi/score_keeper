@@ -48,6 +48,10 @@ class ScoreChart extends StatelessWidget {
     minScore -= 10;
     maxScore += 10;
 
+    // Thin out round labels so they don't overlap in long games (~8 max).
+    final rounds = cumulativeScores.length - 1;
+    final labelInterval = (rounds <= 8 ? 1 : (rounds / 8).ceil()).toDouble();
+
     return Padding(
       padding: EdgeInsets.all(isLandscape ? 8.0 : 16.0),
       child: LineChart(
@@ -76,6 +80,7 @@ class ScoreChart extends StatelessWidget {
                     ),
                   );
                 },
+                interval: labelInterval,
                 reservedSize: isLandscape ? 24 : 30,
               ),
             ),
@@ -122,6 +127,8 @@ class ScoreChart extends StatelessWidget {
                 ),
               ),
               isCurved: true,
+              // Don't let the smoothed line dip/peak past real scores.
+              preventCurveOverShooting: true,
               color: AppConstants.playerColors[playerIndex % AppConstants.playerColors.length],
               barWidth: isLandscape ? 2 : 3,
               isStrokeCapRound: true,

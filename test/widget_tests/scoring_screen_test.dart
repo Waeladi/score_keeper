@@ -28,11 +28,11 @@ Widget _buildScoringScreen({
 void main() {
   testWidgets('ScoringScreen shows correct round number', (WidgetTester tester) async {
     await tester.pumpWidget(_buildScoringScreen(currentRound: 3));
-    expect(find.text('Round 3'), findsOneWidget);
+    expect(find.text('Round 3'), findsWidgets);
   });
 
   testWidgets('Default sign toggle shows correct icon', (WidgetTester tester) async {
-    // Use portrait dimensions so the compact 'Default' toggle renders
+    // Use portrait dimensions
     tester.view.physicalSize = const Size(600, 1000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
@@ -42,28 +42,29 @@ void main() {
 
     await tester.pumpWidget(_buildScoringScreen());
 
-    // Initially should show add icon (positive)
-    expect(find.byIcon(Icons.add_circle), findsOneWidget);
-    expect(find.byIcon(Icons.remove_circle), findsNothing);
+    // Initially should show the "Default +" chip with add icon
+    expect(find.byIcon(Icons.add_circle_outline), findsOneWidget);
+    expect(find.text('Default +'), findsOneWidget);
 
-    // Find and tap the default sign toggle
-    await tester.tap(find.text('Default'));
+    // Tap the default sign toggle chip
+    await tester.tap(find.text('Default +'));
     await tester.pump();
 
-    // After toggle, should show remove icon (negative)
-    expect(find.byIcon(Icons.remove_circle), findsOneWidget);
-    expect(find.byIcon(Icons.add_circle), findsNothing);
+    // After toggle, should show "Default -" with remove icon
+    expect(find.byIcon(Icons.remove_circle_outline), findsOneWidget);
+    expect(find.text('Default -'), findsOneWidget);
   });
 
-  testWidgets('Score boxes display correct values', (WidgetTester tester) async {
+  testWidgets('Leader card displays correct leader score', (WidgetTester tester) async {
     await tester.pumpWidget(_buildScoringScreen(
       currentScores: const [10, 20],
     ));
 
-    // Total score should be 30 (10 + 20)
-    expect(find.text('30'), findsOneWidget);
-
-    // Initial round score should be 0
-    expect(find.text('0'), findsWidgets);
+    // Leader card should show the highest score (20) — also appears in the player row
+    expect(find.text('20'), findsWidgets);
+    // Leader name should be Player 2
+    expect(find.text('Player 2'), findsWidgets);
+    // LEADER label
+    expect(find.text('LEADER'), findsOneWidget);
   });
 }

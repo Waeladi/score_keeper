@@ -28,8 +28,8 @@ class HistoryScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Center(
-            child: Text('Score History', style: AppConstants.headingStyle),
+          Center(
+            child: Text('Score History', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppConstants.onBackground)),
           ),
           const SizedBox(height: 16),
           Expanded(child: _buildHistoryTable(context, isLandscape: isLandscape)),

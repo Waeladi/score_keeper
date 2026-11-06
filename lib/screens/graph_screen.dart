@@ -28,7 +28,7 @@ class GraphScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          const Text('Score Progression', style: AppConstants.headingStyle),
+          Text('Score Progression', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppConstants.onBackground)),
           const SizedBox(height: 16),
           Expanded(
             child: ScoreChart(
