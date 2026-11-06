@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../utils/constants.dart';
 
 class HistoryScreen extends StatelessWidget {
@@ -18,28 +19,71 @@ class HistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (scoreHistory.isEmpty) {
-      return const Center(child: Text('No game history yet'));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.history,
+                size: 48, color: AppConstants.onBackground.withValues(alpha: 0.7)),
+            const SizedBox(height: 8),
+            Text(
+              'No rounds played yet',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppConstants.onBackground,
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Center(
-            child: Text('Score History', style: AppConstants.headingStyle),
-          ),
-          const SizedBox(height: 16),
-          Expanded(child: _buildHistoryTable(context, isLandscape: isLandscape)),
-        ],
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppConstants.outerMargin, 12, AppConstants.outerMargin, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Score History',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppConstants.onBackground,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Long-press a round to revert to it',
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                color: AppConstants.onBackground.withValues(alpha: 0.75),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: AppConstants.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+                ),
+                child: _buildHistoryTable(context, isLandscape: isLandscape),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildHistoryTable(BuildContext context, {required bool isLandscape}) {
-    final screenWidth = MediaQuery.of(context).size.width - 32;
+    final screenWidth =
+        MediaQuery.of(context).size.width - 2 * AppConstants.outerMargin;
     final horizontalMargin = isLandscape ? 12.0 : 8.0;
     final columnSpacing = isLandscape ? 12.0 : 8.0;
     final roundColumnWidth = isLandscape ? 50.0 : 40.0;
@@ -47,6 +91,13 @@ class HistoryScreen extends StatelessWidget {
     final availableWidth = screenWidth - (2 * horizontalMargin);
     final totalSpacing = columnSpacing * playerCount;
     final playerColumnWidth = (availableWidth - roundColumnWidth - totalSpacing) / playerCount;
+
+    final headerStyle = GoogleFonts.manrope(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1,
+      color: AppConstants.onSurfaceVariant,
+    );
 
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
@@ -57,18 +108,17 @@ class HistoryScreen extends StatelessWidget {
             child: DataTable(
               columnSpacing: columnSpacing,
               horizontalMargin: horizontalMargin,
-              headingRowHeight: isLandscape ? 48 : 40,
+              headingRowHeight: isLandscape ? 48 : 44,
               dataRowMinHeight: isLandscape ? 40 : 36,
               dataRowMaxHeight: isLandscape ? 56 : 48,
+              headingRowColor: WidgetStateProperty.all(AppConstants.surfaceContainerLow),
+              dividerThickness: 0.5,
               columns: [
                 DataColumn(
                   label: Container(
                     width: roundColumnWidth,
                     alignment: Alignment.center,
-                    child: Text(
-                      isLandscape ? 'Round' : 'Rnd',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                    child: Text(isLandscape ? 'ROUND' : 'RND', style: headerStyle),
                   ),
                 ),
                 for (int i = 0; i < playerCount; i++)
@@ -78,7 +128,11 @@ class HistoryScreen extends StatelessWidget {
                       alignment: Alignment.center,
                       child: Text(
                         playerNames[i],
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppConstants.onSurface,
+                        ),
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                       ),
@@ -93,14 +147,20 @@ class HistoryScreen extends StatelessWidget {
 
                   return DataRow(
                     color: isLatestRound
-                        ? WidgetStateProperty.all(AppConstants.highlightColor)
+                        ? WidgetStateProperty.all(AppConstants.primaryContainer)
                         : null,
                     cells: [
                       DataCell(
                         Container(
                           width: roundColumnWidth,
                           alignment: Alignment.center,
-                          child: Text('$roundNumber'),
+                          child: Text(
+                            '$roundNumber',
+                            style: GoogleFonts.manrope(
+                              fontWeight: FontWeight.w700,
+                              color: AppConstants.onSurfaceVariant,
+                            ),
+                          ),
                         ),
                         onLongPress: () => _showRevertConfirmation(context, roundNumber),
                       ),
@@ -111,11 +171,12 @@ class HistoryScreen extends StatelessWidget {
                             alignment: Alignment.center,
                             child: Text(
                               '${scoreHistory[index][i]}',
-                              style: TextStyle(
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 15,
                                 color: scoreHistory[index][i] < 0
-                                    ? AppConstants.negativeScoreColor
-                                    : AppConstants.positiveScoreColor,
-                                fontWeight: isLatestRound ? FontWeight.bold : FontWeight.normal,
+                                    ? AppConstants.error
+                                    : AppConstants.primary,
+                                fontWeight: isLatestRound ? FontWeight.w700 : FontWeight.w500,
                               ),
                             ),
                           ),
@@ -157,15 +218,15 @@ class HistoryScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('CANCEL'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
                 onRevertToRound(roundNumber);
               },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('REVERT'),
+              style: TextButton.styleFrom(foregroundColor: AppConstants.error),
+              child: const Text('Revert'),
             ),
           ],
         );

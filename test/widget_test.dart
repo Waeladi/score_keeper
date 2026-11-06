@@ -9,13 +9,15 @@ void main() {
     SharedPreferences.setMockInitialValues({});
 
     await tester.pumpWidget(const ScoreKeeperApp(analytics: null));
-    await tester.pumpAndSettle();
+
+    // Wait for splash screen animation and navigation (2+ seconds)
+    await tester.pumpAndSettle(const Duration(seconds: 3));
 
     // Verify that the New Game screen is shown
     expect(find.text('Start New Game'), findsOneWidget);
-    expect(find.text('2 Players'), findsOneWidget);
-    expect(find.text('3 Players'), findsOneWidget);
-    expect(find.text('4 Players'), findsOneWidget);
+    expect(find.bySemanticsLabel('2 Players'), findsOneWidget);
+    expect(find.bySemanticsLabel('3 Players'), findsOneWidget);
+    expect(find.bySemanticsLabel('4 Players'), findsOneWidget);
   });
 
   test('GameState should initialize correctly', () {

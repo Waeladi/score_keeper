@@ -19,7 +19,7 @@ void main() {
       await tester.pumpAndSettle();
       
       // 2. Select 4 players
-      final playerButton = find.text('4 Players');
+      final playerButton = find.bySemanticsLabel('4 Players');
       expect(playerButton, findsOneWidget, reason: 'Could not find 4 Players button');
       await tester.tap(playerButton);
       await tester.pumpAndSettle();

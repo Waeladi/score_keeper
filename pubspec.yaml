@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+7
+version: 1.1.0+7
 
 environment:
   sdk: ^3.7.0
@@ -44,6 +44,7 @@ dependencies:
   # flutter_svg: ^2.0.10+1 # Already removed
   package_info_plus: ^8.0.0
   flutter_native_splash: 2.4.6
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -95,19 +96,29 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
+  # Only runtime assets belong here. Store graphics, icon sources and splash
+  # images are build-time inputs and must not ship in the app bundle.
   assets:
-    - assets/icon/
+    - assets/icon/plus_minus.png
+    - assets/google_fonts/
 
 flutter_icons:
   android: true
   image_path: "assets/icon/icon.png"
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
-  min_sdk_android: 21
+  min_sdk_android: 24
 
 flutter_native_splash:
-  color: "#1A1A2E"
-  image: assets/icon/icon.png
+  color: "#0B1F1A"
+  image: assets/splash/splash_light.png
+  color_dark: "#06130F"
+  image_dark: assets/splash/splash_dark.png
   android_12:
-    color: "#1A1A2E"
-    image: assets/icon/icon_foreground.png
+    color: "#0B1F1A"
+    image: assets/splash/splash_a12_light.png
+    color_dark: "#06130F"
+    image_dark: assets/splash/splash_a12_dark.png
+  android: true
+  ios: false
+  web: false

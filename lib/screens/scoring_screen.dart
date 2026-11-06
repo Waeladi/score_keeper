@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../utils/constants.dart';
 import '../widgets/player_score_input.dart';
 
@@ -8,9 +9,11 @@ class ScoringScreen extends StatefulWidget {
   final List<int> currentScores;
   final int currentRound;
   final bool defaultNegative;
+  final bool lowScoreWins;
   final Function(int, String) onPlayerNameChanged;
   final Function(List<int>) onScoresSubmitted;
   final Function(bool) onDefaultSignChanged;
+  final Function(bool) onLowScoreWinsChanged;
 
   const ScoringScreen({
     super.key,
@@ -19,9 +22,11 @@ class ScoringScreen extends StatefulWidget {
     required this.currentScores,
     required this.currentRound,
     required this.defaultNegative,
+    required this.lowScoreWins,
     required this.onPlayerNameChanged,
     required this.onScoresSubmitted,
     required this.onDefaultSignChanged,
+    required this.onLowScoreWinsChanged,
   });
 
   @override
@@ -44,16 +49,44 @@ class _ScoringScreenState extends State<ScoringScreen> {
   @override
   void didUpdateWidget(ScoringScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.defaultNegative != widget.defaultNegative) {
+      _defaultNegative = widget.defaultNegative;
+    }
     if (oldWidget.playerCount != widget.playerCount) {
       _disposeControllers();
       _initializeControllers();
+    } else if (!identical(oldWidget.currentScores, widget.currentScores) ||
+        (oldWidget.currentRound != widget.currentRound &&
+            widget.currentRound != oldWidget.currentRound + 1)) {
+      // New game / reset (new scores list) or revert (round jumped back):
+      // pending entries belong to a round that no longer exists, so drop them.
+      _clearEntries();
     }
   }
 
+  void _clearEntries() {
+    for (var controller in _scoreControllers) {
+      controller.clear();
+    }
+    _isNegativeScore = List.generate(
+      AppConstants.maxPlayers,
+      (index) => _defaultNegative,
+    );
+  }
+
   void _initializeControllers() {
-    _scoreControllers = List.generate(AppConstants.maxPlayers, (index) => TextEditingController());
-    _isNegativeScore = List.generate(AppConstants.maxPlayers, (index) => _defaultNegative);
-    _scoreFocusNodes = List.generate(AppConstants.maxPlayers, (index) => FocusNode());
+    _scoreControllers = List.generate(
+      AppConstants.maxPlayers,
+      (index) => TextEditingController(),
+    );
+    _isNegativeScore = List.generate(
+      AppConstants.maxPlayers,
+      (index) => _defaultNegative,
+    );
+    _scoreFocusNodes = List.generate(
+      AppConstants.maxPlayers,
+      (index) => FocusNode(),
+    );
 
     for (var controller in _scoreControllers) {
       controller.addListener(_onScoreChanged);
@@ -88,7 +121,9 @@ class _ScoringScreenState extends State<ScoringScreen> {
         try {
           int score = int.parse(_scoreControllers[i].text);
           if (score < 0) {
-            errorMessages.add('${widget.playerNames[i]}: Use +/- toggle for negative scores');
+            errorMessages.add(
+              '${widget.playerNames[i]}: Use +/- toggle for negative scores',
+            );
           }
         } catch (e) {
           errorMessages.add('${widget.playerNames[i]}: Invalid number');
@@ -99,10 +134,12 @@ class _ScoringScreenState extends State<ScoringScreen> {
     if (errorMessages.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(errorMessages.length > 1
-              ? 'Please fix invalid score entries'
-              : errorMessages.first),
-          backgroundColor: Colors.red,
+          content: Text(
+            errorMessages.length > 1
+                ? 'Please fix invalid score entries'
+                : errorMessages.first,
+          ),
+          backgroundColor: AppConstants.error,
           duration: const Duration(seconds: 3),
         ),
       );
@@ -131,41 +168,20 @@ class _ScoringScreenState extends State<ScoringScreen> {
 
     widget.onScoresSubmitted(roundScores);
     setState(() {
-      _isNegativeScore = List.generate(AppConstants.maxPlayers, (index) => _defaultNegative);
+      _isNegativeScore = List.generate(
+        AppConstants.maxPlayers,
+        (index) => _defaultNegative,
+      );
     });
 
     _scoreFocusNodes[0].requestFocus();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Scores for round ${widget.currentRound} submitted'),
-        backgroundColor: Colors.green,
+        content: Text('Round ${widget.currentRound} submitted'),
+        backgroundColor: AppConstants.primary,
       ),
     );
-  }
-
-  int _calculateTotalScore() {
-    int total = 0;
-    for (int i = 0; i < widget.playerCount; i++) {
-      total += widget.currentScores[i];
-    }
-    return total;
-  }
-
-  int _calculateCurrentRoundScore() {
-    int total = 0;
-    for (int i = 0; i < widget.playerCount; i++) {
-      if (_scoreControllers[i].text.isNotEmpty) {
-        try {
-          int score = int.parse(_scoreControllers[i].text);
-          if (_isNegativeScore[i]) score = -score;
-          total += score;
-        } catch (e) {
-          // Skip invalid entries
-        }
-      }
-    }
-    return total;
   }
 
   void _toggleScoreSign(int index) {
@@ -187,41 +203,91 @@ class _ScoringScreenState extends State<ScoringScreen> {
     });
   }
 
+  // Indexes of every player holding the best total (more than one on a tie).
+  List<int> _getLeaderIndexes() {
+    final scores = widget.currentScores.take(widget.playerCount);
+    final best =
+        widget.lowScoreWins
+            ? scores.reduce((a, b) => a < b ? a : b)
+            : scores.reduce((a, b) => a > b ? a : b);
+    return [
+      for (int i = 0; i < widget.playerCount; i++)
+        if (widget.currentScores[i] == best) i,
+    ];
+  }
+
+  String _displayName(int index) =>
+      widget.playerNames[index].isNotEmpty
+          ? widget.playerNames[index]
+          : 'Player ${index + 1}';
+
+  void _toggleLowScoreWins() {
+    final lowScoreWins = !widget.lowScoreWins;
+    widget.onLowScoreWinsChanged(lowScoreWins);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            lowScoreWins ? 'Lowest score now leads' : 'Highest score now leads',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
+  int _calculateCurrentRoundTotal() {
+    int total = 0;
+    for (int i = 0; i < widget.playerCount; i++) {
+      if (_scoreControllers[i].text.isNotEmpty) {
+        try {
+          int score = int.parse(_scoreControllers[i].text);
+          if (_isNegativeScore[i]) score = -score;
+          total += score;
+        } catch (_) {}
+      }
+    }
+    return total;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final hasEntries = _scoreControllers
+        .take(widget.playerCount)
+        .any((controller) => controller.text.isNotEmpty);
 
     return SafeArea(
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.translucent,
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.outerMargin,
+          ),
           child: Column(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppConstants.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  'Round ${widget.currentRound}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
+              const SizedBox(height: 12),
+              // Dashboard summary cards
+              _buildDashboardCards(),
+              const SizedBox(height: 16),
+              // Section header
+              _buildSectionHeader(),
               const SizedBox(height: 8),
+              // Player list
               Expanded(
-                child: isLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
+                child:
+                    isLandscape
+                        ? _buildLandscapeLayout()
+                        : _buildPortraitLayout(),
               ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _submitScores,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(46),
-                ),
-                child: const Text('Submit Round Scores'),
-              ),
+              // Submit CTA: only once at least one score has been entered
+              if (hasEntries) ...[
+                const SizedBox(height: 8),
+                _buildSubmitSection(),
+              ],
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -229,188 +295,331 @@ class _ScoringScreenState extends State<ScoringScreen> {
     );
   }
 
-  Widget _buildSummaryScoreCard(String title, int score) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(12),
-      ),
+  Widget _buildDashboardCards() {
+    final leaders = _getLeaderIndexes();
+    final leaderName = switch (leaders.length) {
+      1 => _displayName(leaders[0]),
+      2 => '${_displayName(leaders[0])} & ${_displayName(leaders[1])}',
+      _ => 'Tied',
+    };
+    final leaderScore = widget.currentScores[leaders.first];
+    final roundTotal = _calculateCurrentRoundTotal();
+
+    // IntrinsicHeight + stretch keeps both cards the same height.
+    return IntrinsicHeight(
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey),
-          ),
-          Text(
-            '$score',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: score < 0 ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
+          // Leader card
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppConstants.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+                border: const Border(
+                  bottom: BorderSide(color: AppConstants.primary, width: 4),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'LEADER',
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                            color: AppConstants.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      _buildWinRuleChip(),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    leaderName,
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppConstants.onSurface,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '$leaderScore',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: AppConstants.primary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            textAlign: TextAlign.center,
+          ),
+          const SizedBox(width: 12),
+          // Round total card
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppConstants.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ROUND TOTAL',
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
+                      color: AppConstants.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Round ${widget.currentRound}',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppConstants.onSurface,
+                    ),
+                  ),
+                  Text(
+                    roundTotal >= 0 ? '+$roundTotal' : '$roundTotal',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color:
+                          roundTotal < 0
+                              ? AppConstants.error
+                              : AppConstants.secondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDefaultSignToggle({bool compact = false}) {
-    final icon = Icon(
-      _defaultNegative ? Icons.remove_circle : Icons.add_circle,
-      color: _defaultNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
-      size: compact ? 20 : 24,
-    );
-
-    if (compact) {
-      return SizedBox(
-        width: 48,
-        child: GestureDetector(
-          onTap: _toggleDefaultSign,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              icon,
-              Text(
-                'Default',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: _defaultNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
+  Widget _buildWinRuleChip() {
+    final low = widget.lowScoreWins;
+    return Semantics(
+      button: true,
+      label:
+          low
+              ? 'Lowest score wins. Tap to switch to highest.'
+              : 'Highest score wins. Tap to switch to lowest.',
+      excludeSemantics: true,
+      child: Material(
+        color: AppConstants.surfaceContainerLow,
+        shape: const StadiumBorder(),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: _toggleLowScoreWins,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  low ? Icons.arrow_downward : Icons.arrow_upward,
+                  size: 12,
+                  color: AppConstants.primary,
                 ),
-              ),
-            ],
+                const SizedBox(width: 2),
+                Text(
+                  low ? 'LOW' : 'HIGH',
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
+                    color: AppConstants.primary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
+  Widget _buildSectionHeader() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text('Default Sign: ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        Text(
+          'Active Players',
+          style: GoogleFonts.spaceGrotesk(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppConstants.onBackground,
+          ),
+        ),
         GestureDetector(
           onTap: _toggleDefaultSign,
-          child: Row(
-            children: [
-              icon,
-              const SizedBox(width: 4),
-              Text(
-                _defaultNegative ? 'Negative' : 'Positive',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: _defaultNegative ? AppConstants.negativeScoreColor : AppConstants.positiveScoreColor,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(AppConstants.chipRadius),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _defaultNegative
+                      ? Icons.remove_circle_outline
+                      : Icons.add_circle_outline,
+                  size: 14,
+                  color: AppConstants.onBackground,
                 ),
-              ),
-            ],
+                const SizedBox(width: 4),
+                Text(
+                  _defaultNegative ? 'Default -' : 'Default +',
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppConstants.onBackground.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(width: 16),
       ],
-    );
-  }
-
-  Widget _buildSummaryRow() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Row(
-        children: [
-          Expanded(child: _buildSummaryScoreCard('Running Total', _calculateTotalScore())),
-          const SizedBox(width: 12),
-          Expanded(child: _buildSummaryScoreCard('Round Total', _calculateCurrentRoundScore())),
-        ],
-      ),
     );
   }
 
   Widget _buildPortraitLayout() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4.0),
-          child: Row(
-            children: [
-              const Expanded(
-                flex: 3,
-                child: Text('Player', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
-              ),
-              const SizedBox(width: 8),
-              const Expanded(
-                flex: 2,
-                child: Text('Total', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
-              ),
-              const SizedBox(width: 8),
-              const Expanded(
-                flex: 2,
-                child: Text('Round', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
-              ),
-              const SizedBox(width: 8),
-              _buildDefaultSignToggle(compact: true),
-            ],
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.only(bottom: 4.0),
-          child: Divider(height: 1, thickness: 1),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: widget.playerCount,
-            itemBuilder: (context, index) {
-              return PlayerScoreInput(
-                playerIndex: index,
-                playerName: widget.playerNames[index],
-                currentScore: widget.currentScores[index],
-                scoreController: _scoreControllers[index],
-                scoreFocusNode: _scoreFocusNodes[index],
-                isNegative: _isNegativeScore[index],
-                onPlayerNameChanged: widget.onPlayerNameChanged,
-                onToggleSign: () => _toggleScoreSign(index),
-              );
-            },
-          ),
-        ),
-        _buildSummaryRow(),
-      ],
+    return ListView.builder(
+      itemCount: widget.playerCount,
+      itemBuilder: (context, index) {
+        return PlayerScoreInput(
+          playerIndex: index,
+          playerName: widget.playerNames[index],
+          currentScore: widget.currentScores[index],
+          scoreController: _scoreControllers[index],
+          scoreFocusNode: _scoreFocusNodes[index],
+          isNegative: _isNegativeScore[index],
+          onPlayerNameChanged: widget.onPlayerNameChanged,
+          onToggleSign: () => _toggleScoreSign(index),
+        );
+      },
     );
   }
 
   Widget _buildLandscapeLayout() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: _buildDefaultSignToggle(),
-        ),
-        Expanded(
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 2.5,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: widget.playerCount,
-            itemBuilder: (context, index) {
-              return PlayerScoreInput(
-                playerIndex: index,
-                playerName: widget.playerNames[index],
-                currentScore: widget.currentScores[index],
-                scoreController: _scoreControllers[index],
-                scoreFocusNode: _scoreFocusNodes[index],
-                isNegative: _isNegativeScore[index],
-                isLandscape: true,
-                onPlayerNameChanged: widget.onPlayerNameChanged,
-                onToggleSign: () => _toggleScoreSign(index),
-              );
-            },
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 2.2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: widget.playerCount,
+      itemBuilder: (context, index) {
+        return PlayerScoreInput(
+          playerIndex: index,
+          playerName: widget.playerNames[index],
+          currentScore: widget.currentScores[index],
+          scoreController: _scoreControllers[index],
+          scoreFocusNode: _scoreFocusNodes[index],
+          isNegative: _isNegativeScore[index],
+          isLandscape: true,
+          onPlayerNameChanged: widget.onPlayerNameChanged,
+          onToggleSign: () => _toggleScoreSign(index),
+        );
+      },
+    );
+  }
+
+  Widget _buildSubmitSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Ready for next round?',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppConstants.onBackground,
+                ),
+              ),
+              Text(
+                'Round ${widget.currentRound}',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  color: AppConstants.onBackground.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
           ),
-        ),
-        _buildSummaryRow(),
-      ],
+          GestureDetector(
+            onTap: _submitScores,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppConstants.primaryDim, AppConstants.primary],
+                ),
+                borderRadius: BorderRadius.circular(AppConstants.chipRadius),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppConstants.onSurface.withValues(alpha: 0.15),
+                    offset: const Offset(0, 4),
+                    blurRadius: 12,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'SUBMIT',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

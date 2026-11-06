@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../utils/constants.dart';
+import 'number_pad.dart';
 
 class PlayerScoreInput extends StatefulWidget {
   final int playerIndex;
@@ -31,6 +33,7 @@ class PlayerScoreInput extends StatefulWidget {
 
 class _PlayerScoreInputState extends State<PlayerScoreInput> {
   late TextEditingController _nameController;
+  bool _isEditingName = false;
 
   @override
   void initState() {
@@ -52,114 +55,163 @@ class _PlayerScoreInputState extends State<PlayerScoreInput> {
     super.dispose();
   }
 
-  Color get _signColor => widget.isNegative
-      ? AppConstants.negativeScoreColor
-      : AppConstants.positiveScoreColor;
+  Widget _buildAvatar() {
+    final color = AppConstants.playerColors[
+        widget.playerIndex % AppConstants.playerColors.length];
+    final initial = widget.playerName.isNotEmpty
+        ? widget.playerName[0].toUpperCase()
+        : '${widget.playerIndex + 1}';
 
-  Widget _buildNameField({double? height, EdgeInsetsGeometry? contentPadding}) {
-    return SizedBox(
-      height: height ?? AppConstants.playerRowHeight,
-      child: TextField(
-        decoration: InputDecoration(
-          labelText: 'Player Name',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          contentPadding: contentPadding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-        ),
-        controller: _nameController,
-        onChanged: (value) => widget.onPlayerNameChanged(widget.playerIndex, value),
-        onTap: () {
-          _nameController.selection = TextSelection(
-            baseOffset: 0,
-            extentOffset: _nameController.text.length,
-          );
-        },
-        textInputAction: TextInputAction.done,
-        onEditingComplete: () => FocusScope.of(context).unfocus(),
-      ),
-    );
-  }
-
-  Widget _buildScoreDisplay({required double height}) {
     return Container(
-      height: height,
-      padding: const EdgeInsets.all(8),
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(12),
+        color: color,
+        shape: BoxShape.circle,
       ),
       child: Center(
         child: Text(
-          '${widget.currentScore}',
-          style: TextStyle(
+          initial,
+          style: GoogleFonts.spaceGrotesk(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _finishEditingName() {
+    // A blank name would show as an empty header in History and Graph.
+    if (_nameController.text.trim().isEmpty) {
+      widget.onPlayerNameChanged(widget.playerIndex, 'Player ${widget.playerIndex + 1}');
+    }
+    setState(() => _isEditingName = false);
+    FocusScope.of(context).unfocus();
+  }
+
+  Widget _buildPlayerInfo() {
+    if (_isEditingName) {
+      return SizedBox(
+        height: 36,
+        child: TextField(
+          controller: _nameController,
+          autofocus: true,
+          style: GoogleFonts.spaceGrotesk(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: widget.currentScore < 0
-                ? AppConstants.negativeScoreColor
-                : AppConstants.positiveScoreColor,
+            fontWeight: FontWeight.w700,
+            color: AppConstants.onSurface,
           ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScoreField({required double height, EdgeInsetsGeometry? contentPadding}) {
-    return SizedBox(
-      height: height,
-      child: TextField(
-        controller: widget.scoreController,
-        focusNode: widget.scoreFocusNode,
-        decoration: InputDecoration(
-          labelText: 'Score',
-          labelStyle: const TextStyle(fontSize: 10),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.grey),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: _signColor),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: _signColor, width: 2),
-          ),
-          contentPadding: contentPadding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-          alignLabelWithHint: true,
-          floatingLabelAlignment: FloatingLabelAlignment.center,
-        ),
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 18,
-          color: _signColor,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSignToggle({required double height, double? iconSize}) {
-    return SizedBox(
-      height: height,
-      width: 44,
-      child: InkWell(
-        onTap: widget.onToggleSign,
-        child: Container(
-          decoration: BoxDecoration(
-            color: _signColor.withValues(alpha: 0.8),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: Image.asset(
-              'assets/icon/plus_minus.png',
-              width: iconSize ?? 24,
-              height: iconSize ?? 24,
-              fit: BoxFit.contain,
-              semanticLabel: 'Toggle Score Sign',
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppConstants.outlineVariant),
             ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppConstants.primary, width: 2),
+            ),
+          ),
+          onChanged: (value) => widget.onPlayerNameChanged(widget.playerIndex, value),
+          onEditingComplete: _finishEditingName,
+          onTapOutside: (_) => _finishEditingName(),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => setState(() => _isEditingName = true),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.playerName.isEmpty
+                ? 'Player ${widget.playerIndex + 1}'
+                : widget.playerName,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppConstants.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoreDisplay() {
+    return Text(
+      '${widget.currentScore}',
+      style: GoogleFonts.spaceGrotesk(
+        fontSize: 22,
+        fontWeight: FontWeight.w900,
+        color: widget.currentScore < 0
+            ? AppConstants.error
+            : AppConstants.primary,
+      ),
+    );
+  }
+
+  void _showNumberPad() {
+    bool localIsNegative = widget.isNegative;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return NumberPad(
+              controller: widget.scoreController,
+              isNegative: localIsNegative,
+              onToggleSign: () {
+                localIsNegative = !localIsNegative;
+                setSheetState(() {});
+                widget.onToggleSign();
+              },
+              onDone: () => Navigator.of(ctx).pop(),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildScoreEntry() {
+    final scoreText = widget.scoreController.text;
+    final displayValue = scoreText.isEmpty ? '0' : scoreText;
+    final hasValue = scoreText.isNotEmpty;
+
+    return GestureDetector(
+      onTap: _showNumberPad,
+      child: Container(
+        width: 56,
+        height: 40,
+        decoration: BoxDecoration(
+          color: hasValue
+              ? (widget.isNegative ? AppConstants.secondaryContainer : AppConstants.primaryContainer)
+              : AppConstants.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+        ),
+        alignment: Alignment.center,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+          widget.isNegative && hasValue ? '-$displayValue' : displayValue,
+          style: GoogleFonts.spaceGrotesk(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: hasValue
+                ? (widget.isNegative ? AppConstants.onSecondaryContainer : AppConstants.onPrimaryContainer)
+                : AppConstants.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+          ),
           ),
         ),
       ),
@@ -176,53 +228,64 @@ class _PlayerScoreInputState extends State<PlayerScoreInput> {
   }
 
   Widget _buildPortraitLayout() {
+    // Alternate card backgrounds per design: even = white, odd = surfaceContainerLow
+    final bgColor = widget.playerIndex.isEven
+        ? AppConstants.surfaceContainerLowest
+        : AppConstants.surfaceContainerLow;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Expanded(flex: 3, child: _buildNameField()),
-          const SizedBox(width: 8),
-          Expanded(flex: 2, child: _buildScoreDisplay(height: AppConstants.playerRowHeight)),
-          const SizedBox(width: 8),
-          Expanded(flex: 2, child: _buildScoreField(height: AppConstants.playerRowHeight)),
-          const SizedBox(width: 8),
-          _buildSignToggle(height: AppConstants.playerRowHeight),
-        ],
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+        ),
+        child: Row(
+          children: [
+            // Left: avatar + name
+            _buildAvatar(),
+            const SizedBox(width: 12),
+            Expanded(child: _buildPlayerInfo()),
+            // Right: total score + score entry
+            _buildScoreDisplay(),
+            const SizedBox(width: 16),
+            _buildScoreEntry(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildLandscapeLayout() {
-    const double inputHeight = AppConstants.playerRowHeight - 15;
+    final bgColor = widget.playerIndex.isEven
+        ? AppConstants.surfaceContainerLowest
+        : AppConstants.surfaceContainerLow;
 
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildNameField(
-              height: inputHeight,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: _buildScoreDisplay(height: inputHeight)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildScoreField(
-                    height: inputHeight,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _buildSignToggle(height: inputHeight, iconSize: 20),
-              ],
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              _buildAvatar(),
+              const SizedBox(width: 10),
+              Expanded(child: _buildPlayerInfo()),
+              _buildScoreDisplay(),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _buildScoreEntry(),
+          ),
+        ],
       ),
     );
   }

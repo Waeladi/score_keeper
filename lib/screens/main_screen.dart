@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_state.dart';
@@ -43,6 +44,7 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _loadGameState() async {
     try {
       final gameState = await GameState.load();
+      if (!mounted) return;
       setState(() {
         _gameState = gameState;
         _isLoading = false;
@@ -50,6 +52,7 @@ class _MainScreenState extends State<MainScreen> {
       });
     } catch (e, stackTrace) {
       debugPrint('Critical error loading state: $e\n$stackTrace');
+      if (!mounted) return;
       setState(() {
         _gameState = GameState(isGameStarted: false);
         _isLoading = false;
@@ -62,12 +65,14 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _loadPackageInfo() async {
     try {
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      if (!mounted) return;
       setState(() {
         _appVersion = packageInfo.version;
         _buildNumber = packageInfo.buildNumber;
       });
     } catch (e) {
       debugPrint('Error loading package info: $e');
+      if (!mounted) return;
       setState(() {
         _appVersion = '?.?.?';
         _buildNumber = '?';
@@ -75,16 +80,15 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  void _startNewGame(int playerCount) {
+  void _startNewGame(int playerCount, bool lowScoreWins) {
     if (_gameState.isGameStarted && _gameState.scoreHistory.isNotEmpty) {
-      _showNewGameConfirmationDialog(playerCount);
+      _showNewGameConfirmationDialog(playerCount, lowScoreWins);
     } else {
-      _confirmStartNewGame(playerCount);
+      _confirmStartNewGame(playerCount, lowScoreWins);
     }
-    _logNavEvent(_homeTabIndex);
   }
 
-  void _showNewGameConfirmationDialog(int playerCount) {
+  void _showNewGameConfirmationDialog(int playerCount, bool lowScoreWins) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -100,7 +104,7 @@ class _MainScreenState extends State<MainScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _confirmStartNewGame(playerCount);
+              _confirmStartNewGame(playerCount, lowScoreWins);
             },
             child: const Text('Start New Game'),
           ),
@@ -109,9 +113,10 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  void _confirmStartNewGame(int playerCount) {
+  void _confirmStartNewGame(int playerCount, bool lowScoreWins) {
+    _logNavEvent(_homeTabIndex);
     setState(() {
-      _gameState = GameState.newGame(playerCount);
+      _gameState = GameState.newGame(playerCount, lowScoreWins: lowScoreWins);
       _selectedIndex = _homeTabIndex;
     });
     _gameState.save();
@@ -129,12 +134,18 @@ class _MainScreenState extends State<MainScreen> {
       _gameState.submitRoundScores(roundScores);
     });
     _gameState.save();
-    _logNavEvent(_homeTabIndex);
   }
 
   void _updateDefaultSignPreference(bool isNegative) {
     setState(() {
       _gameState.setDefaultNegative(isNegative);
+    });
+    _gameState.save();
+  }
+
+  void _updateLowScoreWins(bool lowScoreWins) {
+    setState(() {
+      _gameState.lowScoreWins = lowScoreWins;
     });
     _gameState.save();
   }
@@ -172,7 +183,6 @@ class _MainScreenState extends State<MainScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Game Reset! Scores and history cleared.'),
-        backgroundColor: Colors.orange,
       ),
     );
   }
@@ -182,7 +192,6 @@ class _MainScreenState extends State<MainScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No game progress to reset.'),
-          backgroundColor: Colors.blueGrey,
         ),
       );
       return;
@@ -201,7 +210,7 @@ class _MainScreenState extends State<MainScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppConstants.error),
             onPressed: () {
               Navigator.of(context).pop();
               _resetCurrentGame();
@@ -253,9 +262,11 @@ class _MainScreenState extends State<MainScreen> {
           currentScores: _gameState.currentScores,
           currentRound: _gameState.currentRound,
           defaultNegative: _gameState.defaultNegative,
+          lowScoreWins: _gameState.lowScoreWins,
           onPlayerNameChanged: _updatePlayerName,
           onScoresSubmitted: _submitRoundScores,
           onDefaultSignChanged: _updateDefaultSignPreference,
+          onLowScoreWinsChanged: _updateLowScoreWins,
         ),
         HistoryScreen(
           playerCount: _gameState.playerCount,
@@ -277,27 +288,58 @@ class _MainScreenState extends State<MainScreen> {
           currentScores: _gameState.currentScores,
         ),
       ];
-      mainContent = screens[_selectedIndex];
+      // IndexedStack keeps each tab alive so unsubmitted score entries
+      // survive switching tabs.
+      mainContent = IndexedStack(index: _selectedIndex, children: screens);
     }
 
     String appBarTitle = _gameState.isGameStarted
-        ? _tabTitles[_selectedIndex]
+        ? AppConstants.appName
         : AppConstants.appName;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(title: Text(appBarTitle)),
+      appBar: AppBar(
+        title: Text(appBarTitle),
+        actions: _gameState.isGameStarted
+            ? [
+                Container(
+                  margin: const EdgeInsets.only(right: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(AppConstants.chipRadius),
+                  ),
+                  child: Text(
+                    'ROUND ${_gameState.currentRound.toString().padLeft(2, '0')}',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
+                      color: AppConstants.onBackground,
+                    ),
+                  ),
+                ),
+              ]
+            : null,
+      ),
       body: mainContent,
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.home), label: _tabTitles[0]),
-          BottomNavigationBarItem(icon: const Icon(Icons.history), label: _tabTitles[1]),
-          BottomNavigationBarItem(icon: const Icon(Icons.add), label: _tabTitles[2]),
-          BottomNavigationBarItem(icon: const Icon(Icons.bar_chart), label: _tabTitles[3]),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppConstants.primary.withValues(alpha: 0.9),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.scoreboard), label: 'SCORING'),
+            BottomNavigationBarItem(icon: Icon(Icons.history), label: 'HISTORY'),
+            BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'NEW GAME'),
+            BottomNavigationBarItem(icon: Icon(Icons.leaderboard), label: 'GRAPH'),
+          ],
+        ),
       ),
     );
   }

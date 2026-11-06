@@ -13,7 +13,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Step 1: Start a new game with 2 players
-      final newGameButton = find.text('2 Players');
+      final newGameButton = find.bySemanticsLabel('2 Players');
       await tester.tap(newGameButton);
       await tester.pumpAndSettle();
 

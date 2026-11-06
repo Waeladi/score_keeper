@@ -1,0 +1,28 @@
+<svg viewBox="0 0 1024 1024" width="1024" height="1024"
+     xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
+
+  <!-- BOTTOM CARD: brighter coral for dark bg, rotated +15° -->
+  <g transform="rotate(15 512 512)">
+    <rect x="332.0" y="257.0" width="360" height="510"
+          rx="29" ry="29"
+          fill="#FF8A8A"
+          stroke="#0A1F1A" stroke-width="2.5"
+          stroke-linejoin="round"/>
+  </g>
+
+  <!-- TOP CARD: brighter emerald, rotated -15°, with cream pip -->
+  <g transform="rotate(-15 512 512)">
+    <rect x="332.0" y="257.0" width="360" height="510"
+          rx="29" ry="29"
+          fill="#1FA67B"
+          stroke="#0A1F1A" stroke-width="2.5"
+          stroke-linejoin="round"/>
+    <path d="M 390.0 310.0
+             L 410.0 330.0
+             L 390.0 350.0
+             L 370.0 330.0 Z"
+          fill="#F5E9D7"
+          stroke="#0A1F1A" stroke-width="2.5"
+          stroke-linejoin="round"/>
+  </g>
+</svg>
